@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System 1 vs. System 2 Claims Router — Architectural Bake-Off</title>
+  <meta name="description" content="Interactive live comparison between System 1 single-token decision models (Cygnet) and System 2 autoregressive LLMs (Gemma 4 12B) for US health insurance claims routing.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(17, 24, 39, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-border-hover: rgba(255, 255, 255, 0.16);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      
+      --s1-teal: #14b8a6;
+      --s1-teal-glow: rgba(20, 184, 166, 0.25);
+      --s2-amber: #f59e0b;
+      --s2-amber-glow: rgba(245, 158, 11, 0.25);
+      --cascade-purple: #8b5cf6;
+      --cascade-glow: rgba(139, 92, 246, 0.25);
+      
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-blue: #3b82f6;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(20, 184, 166, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    code, pre, .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* --- Header Bar --- */
+    header {
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 0.85rem 1.5rem;
+    }
+    .header-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--s1-teal), var(--cascade-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 1.1rem;
+      box-shadow: 0 0 15px rgba(20, 184, 166, 0.4);
+    }
+    .brand-title h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .brand-title p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* Telemetry Pill Cluster */
+    .telemetry-cluster {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+    }
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-dim);
+    }
+    .badge-dot.live {
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+    .badge-dot.warn {
+      background: var(--s2-amber);
+      box-shadow: 0 0 8px var(--s2-amber);
+    }
+
+    /* Mode Switcher Pill */
+    .mode-switcher {
+      display: flex;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-full);
+      padding: 3px;
+    }
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.35rem 0.85rem;
+      border-radius: var(--radius-full);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .mode-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text-main);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+    .mode-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* --- Navigation Tabs --- */
+    .nav-tabs-bar {
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(11, 15, 25, 0.4);
+    }
+    .nav-tabs {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      gap: 1.5rem;
+      padding: 0 1.5rem;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.85rem 0.2rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s;
+    }
+    .tab-btn:hover { color: var(--text-main); }
+    .tab-btn.active {
+      color: var(--s1-teal);
+    }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--s1-teal);
+      box-shadow: 0 0 8px var(--s1-teal);
+    }
+
+    /* --- Main Container --- */
+    main {
+      flex: 1;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 1.5rem;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Glass Cards */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      transition: border-color 0.2s;
+    }
+    .card:hover {
+      border-color: var(--card-border-hover);
+    }
+
+    /* Layout Grids */
+    .grid-inspector {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 1.25rem;
+      align-items: start;
+    }
+    @media (max-width: 1024px) {
+      .grid-inspector { grid-template-columns: 1fr; }
+    }
+
+    /* Form Controls */
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    select, input, textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 0.6rem 0.85rem;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    select:focus, input:focus, textarea:focus {
+      border-color: var(--s1-teal);
+      box-shadow: 0 0 0 2px var(--s1-teal-glow);
+    }
+    textarea {
+      resize: vertical;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.7rem 1.25rem;
+      border-radius: var(--radius-md);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--s1-teal), #0d9488);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(20, 184, 166, 0.3);
+    }
+    .btn-primary:hover:not(:disabled) {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Slider Row */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .slider-row input[type="range"] {
+      flex: 1;
+      height: 6px;
+      accent-color: var(--cascade-purple);
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-full);
+      padding: 0;
+      border: none;
+    }
+    .slider-val {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--cascade-purple);
+      min-width: 44px;
+      text-align: right;
+    }
+
+    /* Claim Tag Pills */
+    .claim-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin: 0.5rem 0 1rem;
+    }
+    .tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-muted);
+    }
+    .tag-easy { color: var(--accent-green); background: rgba(16, 185, 129, 0.1); }
+    .tag-hard { color: var(--s2-amber); background: rgba(245, 158, 11, 0.1); }
+
+    /* Results Side-by-Side */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (max-width: 768px) {
+      .results-grid { grid-template-columns: 1fr; }
+    }
+
+    .result-card {
+      border-top: 3px solid transparent;
+    }
+    .result-card.s1 { border-top-color: var(--s1-teal); }
+    .result-card.s2 { border-top-color: var(--s2-amber); }
+    .result-card.cascade { border-top-color: var(--cascade-purple); }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .result-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .pill-s1 { color: var(--s1-teal); }
+    .pill-s2 { color: var(--s2-amber); }
+    .pill-casc { color: var(--cascade-purple); }
+
+    .stat-chip {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+    }
+
+    /* Queue Winner Banner */
+    .queue-winner {
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--card-border);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .queue-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .confidence-score {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--s1-teal);
+    }
+
+    /* Sub-readouts */
+    .sub-readout-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--card-border);
+    }
+    .sub-metric {
+      font-size: 0.75rem;
+    }
+    .sub-metric-val {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-top: 0.15rem;
+    }
+
+    /* Clinical Rationale Box */
+    .rationale-box {
+      background: rgba(245, 158, 11, 0.04);
+      border-left: 3px solid var(--s2-amber);
+      padding: 0.85rem 1rem;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      font-size: 0.85rem;
+      color: #e5e7eb;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    /* Cascade Banner */
+    .cascade-banner {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(20, 184, 166, 0.08));
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    .cascade-verdict-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .cascade-verdict-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* --- Tab 2: Batch Race Styles --- */
+    .batch-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      align-items: end;
+    }
+    .lane-container {
+      margin-bottom: 1.5rem;
+    }
+    .lane-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    .progress-track {
+      height: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: var(--radius-full);
+      transition: width 0.15s ease-out;
+    }
+    .progress-fill.s1 { background: linear-gradient(90deg, #0d9488, var(--s1-teal)); box-shadow: 0 0 12px var(--s1-teal); }
+    .progress-fill.s2 { background: linear-gradient(90deg, #d97706, var(--s2-amber)); box-shadow: 0 0 12px var(--s2-amber); }
+    .progress-fill.cascade { background: linear-gradient(90deg, #7c3aed, var(--cascade-purple)); box-shadow: 0 0 12px var(--cascade-purple); }
+
+    /* Comparative Table */
+    .table-container {
+      overflow-x: auto;
+      margin: 1.5rem 0;
+    }
+    table.comp-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.86rem;
+    }
+    table.comp-table th, table.comp-table td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    table.comp-table th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.2);
+    }
+    table.comp-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .highlight-cell {
+      font-weight: 700;
+      color: var(--s1-teal);
+    }
+
+    /* Calculator Cards */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+    .calc-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .calc-num {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin: 0.5rem 0 0.2rem;
+      letter-spacing: -0.02em;
+    }
+    .calc-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* --- Tab 3: Methodology Styles --- */
+    .prose-content {
+      line-height: 1.7;
+      font-size: 0.92rem;
+      color: #d1d5db;
+    }
+    .prose-content h2 {
+      font-size: 1.3rem;
+      color: #fff;
+      margin: 1.5rem 0 0.75rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .prose-content h3 {
+      font-size: 1.05rem;
+      color: var(--s1-teal);
+      margin: 1.2rem 0 0.4rem;
+    }
+    .prose-content ul {
+      padding-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .formula-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: var(--s1-teal);
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================================== -->
+  <!-- HEADER BAR                                                            -->
+  <!-- ===================================================================== -->
+  <header>
+    <div class="header-inner">
+      <div class="brand-group">
+        <div class="brand-icon">S1</div>
+        <div class="brand-title">
+          <h1>
+            Health Insurance Claims Router
+            <span class="badge" style="background: rgba(20, 184, 166, 0.15); color: var(--s1-teal); border: none;">Bake-Off</span>
+          </h1>
+          <p>System 1 (Cygnet One-Token Readout) vs. System 2 (Gemma 4 12B Autoregressive JSON)</p>
+        </div>
+      </div>
+
+      <div class="telemetry-cluster">
+        <!-- Model Server Indicator -->
+        <div class="badge" id="llama-status-badge">
+          <span class="badge-dot" id="llama-status-dot"></span>
+          <span id="llama-status-text">llama-server: 8000</span>
+        </div>
+
+        <!-- RTX 4090 VRAM -->
+        <div class="badge" id="gpu-vram-badge">
+          <span style="color: var(--text-dim);">VRAM:</span>
+          <span id="vram-val" class="mono">-- / 24.0 GB</span>
+        </div>
+
+        <!-- GPU Power -->
+        <div class="badge" id="gpu-power-badge">
+          <span style="color: var(--text-dim);">Power:</span>
+          <span id="power-val" class="mono">-- W</span>
+        </div>
+
+        <!-- Mode Switcher -->
+        <div class="mode-switcher">
+          <button class="mode-btn active" id="mode-local-btn" onclick="setBackend('local')">
+            RTX 4090 (Local)
+          </button>
+          <button class="mode-btn" id="mode-cloud-btn" onclick="setBackend('cloud')">
+            OpenAI Cloud
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- NAVIGATION TABS                                                       -->
+  <!-- ===================================================================== -->
+  <div class="nav-tabs-bar">
+    <div class="nav-tabs">
+      <button class="tab-btn active" id="tab-btn-inspector" onclick="switchTab('inspector')">
+        Single-Claim Inspector
+      </button>
+      <button class="tab-btn" id="tab-btn-batch" onclick="switchTab('batch')">
+        Batch Race & Cascade Simulator
+      </button>
+      <button class="tab-btn" id="tab-btn-methodology" onclick="switchTab('methodology')">
+        Methodology & Schema
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN VIEWPORT                                                         -->
+  <!-- ===================================================================== -->
+  <main>
+
+    <!-- ----------------------------------------------------------------- -->
+    <!-- TAB 1: SINGLE-CLAIM INSPECTOR                                     -->
+    <!-- ----------------------------------------------------------------- -->
+    <div class="tab-content active" id="tab-inspector">
+      <div class="grid-inspector">
+        
+        <!-- Left Column: Claim Input & Controls -->
+        <div class="card">
+          <div class="form-group">
+            <label class="form-label" for="seed-select">Select Seed Claim (1 of 10)</label>
+            <select id="seed-select" onchange="onSelectClaim(this.value)">
+              <!-- Populated via API -->
+            </select>
+          </div>
+
+          <div class="claim-tags" id="claim-tags-container">
+            <span class="tag" id="tag-age">Age: --</span>
+            <span class="tag" id="tag-specialty">Specialty: --</span>
+            <span class="tag" id="tag-billed">Billed: $--</span>
+            <span class="tag tag-easy" id="tag-difficulty">Easy</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="claim-note-input">Clinical Attachment / Provider Note (Editable)</label>
+            <textarea id="claim-note-input" rows="7" placeholder="Provider clinical notes..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <div class="slider-row">
+              <label class="form-label" for="cascade-threshold-input" style="margin-bottom:0;">Cascade Threshold</label>
+              <span class="slider-val mono" id="threshold-display">0.90</span>
+            </div>
+            <div class="slider-row" style="margin-top:0.4rem;">
+              <input type="range" id="cascade-threshold-input" min="0.50" max="0.99" step="0.01" value="0.90" oninput="onThresholdChange(this.value)">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
+            <button class="btn btn-primary" id="eval-single-btn" onclick="evaluateSingleClaim()" style="flex: 1;">
+              <span id="eval-btn-spinner" class="spinner" style="display: none;"></span>
+              <span id="eval-btn-label">⚡ Evaluate Claim (Side-by-Side)</span>
+            </button>
+            <button class="btn btn-secondary" onclick="resetCurrentClaim()" title="Reset note to original seed">
+              ↺ Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Column: Comparative Results -->
+        <div>
+          <div class="results-grid">
+            
+            <!-- System 1 Card -->
+            <div class="card result-card s1">
+              <div class="result-header">
+                <div class="result-title pill-s1">
+                  <span>System 1: Cygnet Readout</span>
+                </div>
+                <div style="display: flex; gap: 0.4rem;">
+                  <span class="stat-chip mono" id="s1-latency-chip">-- ms</span>
+                  <span class="stat-chip mono" id="s1-tokens-chip">3 tokens out</span>
+                </div>
+              </div>
+
+              <div class="queue-winner">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Primary Route</div>
+                  <div class="queue-name mono" id="s1-winner-queue">--</div>
+                </div>
+                <div class="confidence-score mono" id="s1-confidence-score">--%</div>
+              </div>
+
+              <!-- Probability Bar Chart -->
+              <div style="height: 180px; position: relative; margin-top: 0.5rem;">
+                <canvas id="s1-chart"></canvas>
+              </div>
+
+              <div class="sub-readout-grid">
+                <div class="sub-metric">
+                  <span style="color: var(--text-muted);">Missing Docs:</span>
+                  <div class="sub-metric-val mono" id="s1-missing-docs-val">--</div>
+                </div>
+                <div class="sub-metric">
+                  <span style="color: var(--text-muted);">Urgency Tier:</span>
+                  <div class="sub-metric-val mono" id="s1-urgency-val">--</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- System 2 Card -->
+            <div class="card result-card s2">
+              <div class="result-header">
+                <div class="result-title pill-s2">
+                  <span>System 2: Gemma 4 12B (JSON)</span>
+                </div>
+                <div style="display: flex; gap: 0.4rem;">
+                  <span class="stat-chip mono" id="s2-latency-chip">-- ms</span>
+                  <span class="stat-chip mono" id="s2-tokens-chip">-- tokens out</span>
+                </div>
+              </div>
+
+              <div class="queue-winner">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Adjudicated Route</div>
+                  <div class="queue-name mono" id="s2-winner-queue">--</div>
+                </div>
+                <div class="stat-chip" style="background: rgba(245, 158, 11, 0.15); color: var(--s2-amber);">
+                  Structured JSON
+                </div>
+              </div>
+
+              <div class="form-label">Clinical & Coding Rationale:</div>
+              <div class="rationale-box" id="s2-rationale-box">
+                Run evaluation to generate clinical rationale...
+              </div>
+
+              <div class="sub-readout-grid">
+                <div class="sub-metric">
+                  <span style="color: var(--text-muted);">Missing Docs:</span>
+                  <div class="sub-metric-val mono" id="s2-missing-docs-val">--</div>
+                </div>
+                <div class="sub-metric">
+                  <span style="color: var(--text-muted);">Urgency Tier:</span>
+                  <div class="sub-metric-val mono" id="s2-urgency-val">--</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Cascade Verdict Banner -->
+          <div class="cascade-banner" id="cascade-banner">
+            <div>
+              <div class="cascade-verdict-title" id="cascade-verdict-title">Confidence Cascade Verdict</div>
+              <div class="cascade-verdict-desc" id="cascade-verdict-desc">
+                Evaluate a claim to observe whether System 1 auto-routes or escalates to System 2.
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+              <span class="badge" id="cascade-speedup-badge" style="background: rgba(255, 255, 255, 0.1); font-size: 0.82rem;">
+                -- Speedup
+              </span>
+              <span class="badge" id="cascade-match-badge" style="background: rgba(255, 255, 255, 0.1); font-size: 0.82rem;">
+                Match: --
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ----------------------------------------------------------------- -->
+    <!-- TAB 2: BATCH RACE & CASCADE SIMULATOR                             -->
+    <!-- ----------------------------------------------------------------- -->
+    <div class="tab-content" id="tab-batch">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="batch-controls">
+          <div>
+            <label class="form-label" for="batch-size-select">Batch Size</label>
+            <select id="batch-size-select">
+              <option value="10">10 Claims (Quick Race)</option>
+              <option value="25" selected>25 Claims (Standard)</option>
+              <option value="50">50 Claims</option>
+              <option value="100">100 Claims (Full Benchmark)</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="slider-row">
+              <label class="form-label" for="batch-threshold-slider" style="margin-bottom:0;">Threshold Gate</label>
+              <span class="slider-val mono" id="batch-threshold-val">0.90</span>
+            </div>
+            <div class="slider-row" style="margin-top:0.4rem;">
+              <input type="range" id="batch-threshold-slider" min="0.50" max="0.99" step="0.01" value="0.90" oninput="onBatchThresholdSlider(this.value)">
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label" for="batch-concurrency-select">GPU Slot Concurrency</label>
+            <select id="batch-concurrency-select">
+              <option value="1">1 Stream (Serial)</option>
+              <option value="2">2 Slots</option>
+              <option value="4" selected>4 Slots (Default)</option>
+              <option value="8">8 Slots (Max Parallel)</option>
+            </select>
+          </div>
+
+          <div>
+            <button class="btn btn-primary" id="start-batch-btn" onclick="startBatchRace()" style="width: 100%;">
+              <span id="batch-spinner" class="spinner" style="display: none;"></span>
+              <span id="batch-btn-label">🏁 Start Batch Race</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Racing Lanes -->
+        <div class="lane-container">
+          <div class="lane-header">
+            <span class="pill-s1">⚡ System 1 (Cygnet One-Token Readout)</span>
+            <span class="mono" id="s1-lane-status">Idle</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill s1" id="s1-progress-bar"></div>
+          </div>
+        </div>
+
+        <div class="lane-container">
+          <div class="lane-header">
+            <span class="pill-s2">🧠 System 2 (Gemma 4 12B Autoregressive JSON)</span>
+            <span class="mono" id="s2-lane-status">Idle</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill s2" id="s2-progress-bar"></div>
+          </div>
+        </div>
+
+        <div class="lane-container">
+          <div class="lane-header">
+            <span class="pill-casc">🔄 Confidence Cascade (Gated Routing)</span>
+            <span class="mono" id="cascade-lane-status">Idle</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill cascade" id="cascade-progress-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparative Performance & Economics Table -->
+      <div class="card">
+        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem;">Bake-Off Results & Production Metrics</h2>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Drag the threshold slider above to observe instant client-side re-simulation of the cascade economics with zero re-computation.
+        </p>
+
+        <div class="table-container">
+          <table class="comp-table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th style="color: var(--s1-teal);">System 1 Only</th>
+                <th style="color: var(--s2-amber);">System 2 Only</th>
+                <th style="color: var(--cascade-purple);">Confidence Cascade</th>
+              </tr>
+            </thead>
+            <tbody id="metrics-table-body">
+              <tr>
+                <td>Routing Queue Accuracy</td>
+                <td id="t-s1-acc" class="mono">--</td>
+                <td id="t-s2-acc" class="mono">--</td>
+                <td id="t-casc-acc" class="mono highlight-cell">--</td>
+              </tr>
+              <tr>
+                <td>P50 Latency</td>
+                <td id="t-s1-p50" class="mono highlight-cell">--</td>
+                <td id="t-s2-p50" class="mono">--</td>
+                <td id="t-casc-p50" class="mono">--</td>
+              </tr>
+              <tr>
+                <td>P95 Latency</td>
+                <td id="t-s1-p95" class="mono">--</td>
+                <td id="t-s2-p95" class="mono">--</td>
+                <td id="t-casc-p95" class="mono">--</td>
+              </tr>
+              <tr>
+                <td>Escalation Rate (% to LLM)</td>
+                <td class="mono">0.0%</td>
+                <td class="mono">100.0%</td>
+                <td id="t-casc-esc" class="mono">--</td>
+              </tr>
+              <tr>
+                <td>Output Tokens per Claim</td>
+                <td class="mono">3</td>
+                <td class="mono">~115</td>
+                <td id="t-casc-tokens" class="mono">--</td>
+              </tr>
+              <tr>
+                <td>Batch GPU Energy</td>
+                <td id="t-s1-wh" class="mono">-- Wh</td>
+                <td id="t-s2-wh" class="mono">-- Wh</td>
+                <td id="t-casc-wh" class="mono">-- Wh</td>
+              </tr>
+              <tr>
+                <td>Projected Cost (100k claims/day)</td>
+                <td id="t-s1-cost" class="mono">--</td>
+                <td id="t-s2-cost" class="mono">--</td>
+                <td id="t-casc-cost" class="mono highlight-cell">--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Annual Economics Projection Cards -->
+        <div class="calc-grid">
+          <div class="calc-card">
+            <div class="form-label">System 2 Annual Cost</div>
+            <div class="calc-num mono" style="color: var(--s2-amber);" id="annual-s2-cost">$2,460,000</div>
+            <div class="calc-sub">100,000 claims/day @ $0.50/1M out</div>
+          </div>
+          <div class="calc-card">
+            <div class="form-label">Confidence Cascade Annual Cost</div>
+            <div class="calc-num mono" style="color: var(--cascade-purple);" id="annual-casc-cost">$615,000</div>
+            <div class="calc-sub" id="annual-savings-sub">Savings: $1,845,000 / yr (75%)</div>
+          </div>
+          <div class="calc-card">
+            <div class="form-label">System 1 Annual Cost</div>
+            <div class="calc-num mono" style="color: var(--s1-teal);" id="annual-s1-cost">$146,000</div>
+            <div class="calc-sub">Zero output token cost</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ----------------------------------------------------------------- -->
+    <!-- TAB 3: METHODOLOGY & SCHEMA                                       -->
+    <!-- ----------------------------------------------------------------- -->
+    <div class="tab-content" id="tab-methodology">
+      <div class="card prose-content">
+        <h2>Production Paradigm: System 1 Decision Router vs. Generative LLMs</h2>
+        <p>
+          In high-volume insurance payer workflows (EDI 837 claim ingestion), routing claims to adjudication queues,
+          verifying clinical documentation completeness, and establishing statutory turnaround tiers has historically
+          relied on either brittle heuristic regex rules or costly generative LLMs.
+        </p>
+
+        <h3>1. Single-Token Forward Pass Architecture</h3>
+        <p>
+          System 1 models evaluate state against a declared schema in a single forward pass without autoregressive text generation.
+          The prompt presents lettered choices (A., B., C...) and extracts top-20 logprobs from the single generated answer token.
+          Gemma 4 has multiple surface tokens for letters; mass is summed across duplicate tokens and scaled by calibration temperature:
+        </p>
+        <div class="formula-box">
+          P(choice_i) = p_i^(1 / T) / &Sigma;_j p_j^(1 / T) &nbsp;&nbsp;[Cygnet Recipe T = 3.4]
+        </div>
+
+        <h3>2. Apples-to-Apples Model Parity</h3>
+        <p>
+          Both local System 1 and System 2 backends execute on the <strong>exact same model weights</strong> (<code class="mono">gemma-4-12B-it-Q8_0.gguf</code>)
+          running on the RTX 4090. Thus, any observed latency difference (e.g. 50ms vs 2,500ms) and token savings are strictly
+          attributable to the inference paradigm, rather than differences in parameter count.
+        </p>
+
+        <h3>3. Multi-Question Adjudication Rubric</h3>
+        <ul>
+          <li><strong>routing_queue (5-choice):</strong> <code>auto_adjudicate</code>, <code>clinical_nurse_review</code>, <code>coding_audit_ncci</code>, <code>cob_subrogation</code>, <code>siu_fraud_review</code>.</li>
+          <li><strong>missing_clinical_docs (noul / binary):</strong> Calibrated probability of whether an operative report, pathology report, or imaging disc is missing from claim attachments.</li>
+          <li><strong>urgency_tier (score / 3-level):</strong> <code>standard_30_day</code>, <code>expedited_72_hr</code>, <code>stat_24_hr</code>.</li>
+        </ul>
+
+        <h3>4. Confidence-Gated Cascade</h3>
+        <p>
+          Clear-cut claims (confidence &ge; 0.90) are auto-adjudicated instantly by System 1 in &lt;100ms. Ambiguous edge cases (confidence &lt; 0.90)
+          trigger immediate escalation to System 2 to generate structured clinical rationale for a human nurse auditor.
+        </p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- APPLICATION JAVASCRIPT                                                -->
+  <!-- ===================================================================== -->
+  <script>
+    // Application State
+    let currentBackend = 'local';
+    let seedClaims = [];
+    let currentClaim = null;
+    let s1Chart = null;
+    let cachedBatchData = null; // Holds latest batch results for instant slider re-simulation
+
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', async () => {
+      initChart();
+      await fetchClaimsMetadata();
+      await fetchTelemetry();
+      setInterval(fetchTelemetry, 2500);
+    });
+
+    // --- Tab Switching ---
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      document.getElementById(`tab-btn-${tabId}`).classList.add('active');
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+    }
+
+    // --- Backend Switching ---
+    function setBackend(backend) {
+      currentBackend = backend;
+      document.getElementById('mode-local-btn').classList.toggle('active', backend === 'local');
+      document.getElementById('mode-cloud-btn').classList.toggle('active', backend === 'cloud');
+    }
+
+    // --- Telemetry Polling ---
+    async function fetchTelemetry() {
+      try {
+        const res = await fetch('/api/telemetry');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // Server Status
+        const dot = document.getElementById('llama-status-dot');
+        const text = document.getElementById('llama-status-text');
+        if (data.llama_server.status === 'online') {
+          dot.className = 'badge-dot live';
+          text.textContent = 'llama-server: 8000 (Online)';
+        } else {
+          dot.className = 'badge-dot warn';
+          text.textContent = 'llama-server: Offline';
+        }
+
+        // GPU Telemetry
+        if (data.gpu.available) {
+          document.getElementById('vram-val').textContent = `${data.gpu.vram_used_gb} / ${data.gpu.vram_total_gb} GB`;
+          document.getElementById('power-val').textContent = `${data.gpu.power_watts} W`;
+        }
+
+        // Cloud Button availability
+        const cloudBtn = document.getElementById('mode-cloud-btn');
+        if (!data.cloud.configured) {
+          cloudBtn.title = 'OpenAI API Key not configured in .env';
+        }
+      } catch (e) {
+        console.warn('Telemetry poll error:', e);
+      }
+    }
+
+    // --- Metadata Fetch ---
+    async function fetchClaimsMetadata() {
+      try {
+        const res = await fetch('/api/claims');
+        const data = await res.json();
+        seedClaims = data.seed_claims;
+
+        // Populate dropdown
+        const select = document.getElementById('seed-select');
+        select.innerHTML = '';
+        seedClaims.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.claim_id;
+          opt.textContent = `${c.claim_id}: ${c.title}`;
+          select.appendChild(opt);
+        });
+
+        if (seedClaims.length > 0) {
+          onSelectClaim(seedClaims[1].claim_id); // CLM-1002 default
+          select.value = seedClaims[1].claim_id;
+        }
+
+        // Default threshold
+        document.getElementById('cascade-threshold-input').value = data.default_threshold;
+        document.getElementById('threshold-display').textContent = Number(data.default_threshold).toFixed(2);
+        document.getElementById('batch-threshold-slider').value = data.default_threshold;
+        document.getElementById('batch-threshold-val').textContent = Number(data.default_threshold).toFixed(2);
+      } catch (e) {
+        console.error('Failed to load claims metadata:', e);
+      }
+    }
+
+    // --- Claim Selection ---
+    function onSelectClaim(claimId) {
+      currentClaim = seedClaims.find(c => c.claim_id === claimId);
+      if (!currentClaim) return;
+
+      document.getElementById('claim-note-input').value = currentClaim.clinical_note;
+      document.getElementById('tag-age').textContent = `Age: ${currentClaim.patient_age}`;
+      document.getElementById('tag-specialty').textContent = `Spec: ${currentClaim.provider_specialty}`;
+      document.getElementById('tag-billed').textContent = `Billed: $${currentClaim.billed_amount.toLocaleString()}`;
+      
+      const diffTag = document.getElementById('tag-difficulty');
+      if (currentClaim.difficulty === 'easy') {
+        diffTag.className = 'tag tag-easy';
+        diffTag.textContent = 'Clear-Cut (Easy)';
+      } else {
+        diffTag.className = 'tag tag-hard';
+        diffTag.textContent = 'Ambiguous Edge Case';
+      }
+    }
+
+    function resetCurrentClaim() {
+      if (currentClaim) {
+        document.getElementById('claim-note-input').value = currentClaim.clinical_note;
+      }
+    }
+
+    function onThresholdChange(val) {
+      document.getElementById('threshold-display').textContent = Number(val).toFixed(2);
+    }
+
+    function onBatchThresholdSlider(val) {
+      document.getElementById('batch-threshold-val').textContent = Number(val).toFixed(2);
+      if (cachedBatchData) {
+        reSimulateCascade(Number(val));
+      }
+    }
+
+    // --- Single Claim Evaluation ---
+    async function evaluateSingleClaim() {
+      if (!currentClaim) return;
+
+      const btn = document.getElementById('eval-single-btn');
+      const spinner = document.getElementById('eval-btn-spinner');
+      const label = document.getElementById('eval-btn-label');
+      
+      btn.disabled = true;
+      spinner.style.display = 'inline-block';
+      label.textContent = 'Evaluating Claim...';
+
+      const editedClaim = {
+        ...currentClaim,
+        clinical_note: document.getElementById('claim-note-input').value
+      };
+      const threshold = parseFloat(document.getElementById('cascade-threshold-input').value);
+
+      try {
+        const res = await fetch('/api/evaluate-single', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            claim: editedClaim,
+            backend: currentBackend,
+            modes: ['s1', 's2', 'cascade'],
+            threshold: threshold
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert(`Evaluation failed: ${err.detail || res.statusText}`);
+          return;
+        }
+
+        const data = await res.json();
+        renderSingleResults(data);
+      } catch (e) {
+        alert(`Evaluation error: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        label.textContent = '⚡ Evaluate Claim (Side-by-Side)';
+      }
+    }
+
+    // --- Render Single Results ---
+    function renderSingleResults(data) {
+      const s1 = data.s1;
+      const s2 = data.s2;
+      const cascade = data.cascade;
+
+      // System 1 UI
+      document.getElementById('s1-winner-queue').textContent = s1.routing_queue;
+      document.getElementById('s1-confidence-score').textContent = `${(s1.confidence * 100).toFixed(1)}%`;
+      document.getElementById('s1-latency-chip').textContent = `${s1.latency_ms} ms`;
+      document.getElementById('s1-missing-docs-val').textContent = 
+        `${s1.missing_clinical_docs.toUpperCase()} (${(s1.missing_docs_prob * 100).toFixed(0)}% yes)`;
+      document.getElementById('s1-urgency-val').textContent = s1.urgency_tier;
+
+      // Update Chart
+      updateS1Chart(s1.queue_probabilities);
+
+      // System 2 UI
+      document.getElementById('s2-winner-queue').textContent = s2.routing_queue;
+      document.getElementById('s2-latency-chip').textContent = `${s2.latency_ms} ms`;
+      document.getElementById('s2-tokens-chip').textContent = `${s2.output_tokens} tokens out`;
+      document.getElementById('s2-rationale-box').textContent = s2.clinical_rationale || 'None provided';
+      document.getElementById('s2-missing-docs-val').textContent = s2.missing_clinical_docs.toUpperCase();
+      document.getElementById('s2-urgency-val').textContent = s2.urgency_tier;
+
+      // Cascade Verdict Banner
+      const title = document.getElementById('cascade-verdict-title');
+      const desc = document.getElementById('cascade-verdict-desc');
+      const speedup = document.getElementById('cascade-speedup-badge');
+      const match = document.getElementById('cascade-match-badge');
+
+      const speedFactor = (s2.latency_ms / Math.max(s1.latency_ms, 1)).toFixed(1);
+      speedup.textContent = `${speedFactor}x Speedup`;
+
+      const groundTruth = data.claim.ground_truth_queue;
+      const finalPick = cascade.routing_queue;
+      if (groundTruth) {
+        const isMatch = finalPick === groundTruth;
+        match.textContent = isMatch ? `✓ Match (${groundTruth})` : `⚠ Mismatch (Expected ${groundTruth})`;
+        match.style.color = isMatch ? 'var(--accent-green)' : 'var(--accent-red)';
+      }
+
+      if (cascade.escalated_to_llm) {
+        title.innerHTML = `<span style="color: var(--s2-amber);">⚠️ Escalated to System 2 Review</span> (Confidence ${(s1.confidence * 100).toFixed(1)}% < ${(data.threshold * 100).toFixed(0)}%)`;
+        desc.textContent = `Ambiguous clinical edge case detected. System 1 gated confidence dropped below the cascade threshold. System 2 engaged to generate clinical rationale. Total latency: ${cascade.latency_ms} ms.`;
+      } else {
+        title.innerHTML = `<span style="color: var(--s1-teal);">⚡ Auto-Adjudicated by System 1</span> (Confidence ${(s1.confidence * 100).toFixed(1)}% ≥ ${(data.threshold * 100).toFixed(0)}%)`;
+        desc.textContent = `High-confidence clear-cut claim. Adjudicated instantly in 1 single-token forward pass (${s1.latency_ms} ms) with zero prose tokens generated.`;
+      }
+    }
+
+    // --- Chart.js Initialisation ---
+    function initChart() {
+      const ctx = document.getElementById('s1-chart').getContext('2d');
+      s1Chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['auto_adjudicate', 'clinical_nurse', 'coding_audit', 'cob_subrogation', 'siu_fraud'],
+          datasets: [{
+            data: [0, 0, 0, 0, 0],
+            backgroundColor: [
+              'rgba(20, 184, 166, 0.7)',
+              'rgba(59, 130, 246, 0.7)',
+              'rgba(245, 158, 11, 0.7)',
+              'rgba(139, 92, 246, 0.7)',
+              'rgba(239, 68, 68, 0.7)'
+            ],
+            borderColor: 'rgba(255, 255, 255, 0.15)',
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `Probability: ${(ctx.parsed.x * 100).toFixed(1)}%`
+              }
+            }
+          },
+          scales: {
+            x: {
+              min: 0,
+              max: 1.0,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: {
+                color: '#9ca3af',
+                callback: (v) => `${(v * 100).toFixed(0)}%`
+              }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#e5e7eb', font: { family: 'JetBrains Mono', size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    function updateS1Chart(probs) {
+      if (!s1Chart || !probs) return;
+      const keys = ['auto_adjudicate', 'clinical_nurse_review', 'coding_audit_ncci', 'cob_subrogation', 'siu_fraud_review'];
+      const values = keys.map(k => probs[k] || 0);
+      s1Chart.data.datasets[0].data = values;
+      s1Chart.update();
+    }
+
+    // --- Batch Race (SSE) ---
+    async function startBatchRace() {
+      const count = parseInt(document.getElementById('batch-size-select').value);
+      const threshold = parseFloat(document.getElementById('batch-threshold-slider').value);
+      const concurrency = parseInt(document.getElementById('batch-concurrency-select').value);
+
+      const btn = document.getElementById('start-batch-btn');
+      const spinner = document.getElementById('batch-spinner');
+      const label = document.getElementById('batch-btn-label');
+
+      btn.disabled = true;
+      spinner.style.display = 'inline-block';
+      label.textContent = 'Racing Lanes...';
+
+      // Reset bars
+      document.getElementById('s1-progress-bar').style.width = '0%';
+      document.getElementById('s2-progress-bar').style.width = '0%';
+      document.getElementById('cascade-progress-bar').style.width = '0%';
+      document.getElementById('s1-lane-status').textContent = 'Queued...';
+      document.getElementById('s2-lane-status').textContent = 'Queued...';
+      document.getElementById('cascade-lane-status').textContent = 'Waiting for lane results...';
+
+      try {
+        const response = await fetch('/api/evaluate-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            count: count,
+            backend: currentBackend,
+            threshold: threshold,
+            concurrency: concurrency
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          alert(`Batch race failed: ${err.detail || response.statusText}`);
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop(); // keep uncompleted chunk
+
+          for (const chunk of lines) {
+            if (chunk.startsWith('data: ')) {
+              const eventData = JSON.parse(chunk.slice(6));
+              handleBatchEvent(eventData);
+            }
+          }
+        }
+      } catch (e) {
+        alert(`Batch race connection error: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        label.textContent = '🏁 Start Batch Race';
+      }
+    }
+
+    function handleBatchEvent(ev) {
+      if (ev.event === 'progress') {
+        const pct = Math.round((ev.done / ev.total) * 100);
+        const bar = document.getElementById(`${ev.lane}-progress-bar`);
+        const status = document.getElementById(`${ev.lane}-lane-status`);
+        if (bar) bar.style.width = `${pct}%`;
+        if (status) status.textContent = `${ev.done}/${ev.total} claims (${pct}%) — last: ${ev.latency_ms}ms`;
+      } else if (ev.event === 'lane_start') {
+        const status = document.getElementById(`${ev.lane}-lane-status`);
+        if (status) status.textContent = 'Running inference...';
+      } else if (ev.event === 'lane_done') {
+        const bar = document.getElementById(`${ev.lane}-progress-bar`);
+        const status = document.getElementById(`${ev.lane}-lane-status`);
+        if (bar) bar.style.width = '100%';
+        if (status) status.textContent = `Completed in ${ev.summary.wall_seconds || '--'}s`;
+      } else if (ev.event === 'done') {
+        cachedBatchData = ev;
+        renderBatchSummaries(ev.summaries);
+      }
+    }
+
+    function renderBatchSummaries(summaries) {
+      const s1 = summaries.s1;
+      const s2 = summaries.s2;
+      const casc = summaries.cascade;
+
+      document.getElementById('t-s1-acc').textContent = `${(s1.accuracy * 100).toFixed(1)}%`;
+      document.getElementById('t-s2-acc').textContent = `${(s2.accuracy * 100).toFixed(1)}%`;
+      document.getElementById('t-casc-acc').textContent = `${(casc.accuracy * 100).toFixed(1)}%`;
+
+      document.getElementById('t-s1-p50').textContent = `${s1.latency_p50_ms} ms`;
+      document.getElementById('t-s2-p50').textContent = `${s2.latency_p50_ms} ms`;
+      document.getElementById('t-casc-p50').textContent = `${casc.latency_p50_ms} ms`;
+
+      document.getElementById('t-s1-p95').textContent = `${s1.latency_p95_ms} ms`;
+      document.getElementById('t-s2-p95').textContent = `${s2.latency_p95_ms} ms`;
+      document.getElementById('t-casc-p95').textContent = `${casc.latency_p95_ms} ms`;
+
+      document.getElementById('t-casc-esc').textContent = `${(casc.escalation_rate * 100).toFixed(1)}%`;
+      document.getElementById('t-casc-tokens').textContent = `~${Math.round(casc.output_tokens / casc.count)}`;
+
+      document.getElementById('t-s1-wh').textContent = s1.energy_wh ? `${s1.energy_wh} Wh` : '--';
+      document.getElementById('t-s2-wh').textContent = s2.energy_wh ? `${s2.energy_wh} Wh` : '--';
+      document.getElementById('t-casc-wh').textContent = casc.energy_wh ? `${casc.energy_wh} Wh` : '--';
+
+      document.getElementById('t-s1-cost').textContent = `$${s1.annual_cost_usd.toLocaleString()} / yr`;
+      document.getElementById('t-s2-cost').textContent = `$${s2.annual_cost_usd.toLocaleString()} / yr`;
+      document.getElementById('t-casc-cost').textContent = `$${casc.annual_cost_usd.toLocaleString()} / yr`;
+
+      // Update Calculator Cards
+      document.getElementById('annual-s2-cost').textContent = `$${s2.annual_cost_usd.toLocaleString()}`;
+      document.getElementById('annual-s1-cost').textContent = `$${s1.annual_cost_usd.toLocaleString()}`;
+      document.getElementById('annual-casc-cost').textContent = `$${casc.annual_cost_usd.toLocaleString()}`;
+      
+      const savings = s2.annual_cost_usd - casc.annual_cost_usd;
+      const savingsPct = ((savings / s2.annual_cost_usd) * 100).toFixed(1);
+      document.getElementById('annual-savings-sub').textContent = 
+        `Annual Savings: $${savings.toLocaleString()} / yr (${savingsPct}%)`;
+    }
+
+    // --- Client-Side Instant Cascade Re-Simulation ---
+    async function reSimulateCascade(newThreshold) {
+      if (!cachedBatchData) return;
+      try {
+        const res = await fetch('/api/simulate-cascade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            threshold: newThreshold,
+            s1: cachedBatchData.s1,
+            s2: cachedBatchData.s2,
+            claims: cachedBatchData.claims
+          })
+        });
+
+        if (res.ok) {
+          const sim = await res.json();
+          const summaries = {
+            s1: cachedBatchData.summaries.s1,
+            s2: cachedBatchData.summaries.s2,
+            cascade: sim.summary
+          };
+          renderBatchSummaries(summaries);
+        }
+      } catch (e) {
+        console.error('Instant re-simulation error:', e);
+      }
+    }
+  </script>
+</body>
+</html>

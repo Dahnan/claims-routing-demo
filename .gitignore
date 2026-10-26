@@ -17,3 +17,10 @@ Planning/
 
 # User specific scripts
 start_model_server.ps1
+
+#cygnet recipe
+cygnet-recipe/
+
+# Local IDE and tool configuration (machine-specific paths)
+.vscode/
+pyrefly.toml
