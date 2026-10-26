@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+httpx
+pydantic>=2
+nvidia-ml-py
+python-dotenv
+pytest
+pytest-asyncio
