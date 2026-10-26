@@ -7,8 +7,24 @@ import asyncio
 from typing import Dict, Any, List
 import httpx
 from pydantic import BaseModel, Field
+from cygnet-recipe import Cygnet
 
 from claims_data import ROUTING_SCHEMA, SEED_CLAIMS, format_claim_state
+
+# Initialize Cygnet using your local model weights or llama-server endpoint
+cygnet = CygnetEvaluator(
+    endpoint="http://127.0.0.1:8000"
+    device="cuda"
+)
+
+# Cygnet evaluates the question and returns calibrated probabilities directly:
+result = cygnet.evaluate(
+    state=claim_text,
+    question=ROUTING_SCHEMA["routing_queue"]["instructions"],
+    options=ROUTING_SCHEMA["routing_queue"]["options"]
+)
+
+# result contains: {"choice": "cob_subrogation", "probabilities": {...}, "confidence": 0.94}
 
 # Fix Windows asyncio event loop policy if needed
 if sys.platform == "win32":
