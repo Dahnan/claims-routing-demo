@@ -17,3 +17,6 @@ Planning/
 
 # User specific scripts
 start_model_server.ps1
+
+#cygnet recipe
+cygnet-recipe/
