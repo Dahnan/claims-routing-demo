@@ -12,7 +12,7 @@ import time
 from typing import Any, AsyncIterator, Literal
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 import config
 import cygnet_readout
@@ -131,16 +131,18 @@ URGENCY = list(ROUTING_SCHEMA["urgency_tier"]["options"])
 
 
 async def route_local_cygnet(claim: dict[str, Any]) -> dict[str, Any]:
-    """All 3 questions as concurrent 1-token forward passes (they share the claim-state prompt prefix)."""
+    """All 3 questions as 1-token forward passes, sharing the claim-state prompt prefix."""
     client = get_http_client()
     state = format_claim_state(claim)
     t0 = time.perf_counter()
-    q, d, u = await asyncio.gather(
-        *(cygnet_readout.read_question(client, state, ROUTING_SCHEMA[name])
-          for name in ("routing_queue", "missing_clinical_docs", "urgency_tier"))
-    )
+    # Sequential passes on the same slot allow llama-server (--cache-reuse 256)
+    # to reuse the ~700-token claim state KV cache across the 3 questions.
+    q = await cygnet_readout.read_question(client, state, ROUTING_SCHEMA["routing_queue"])
+    d = await cygnet_readout.read_question(client, state, ROUTING_SCHEMA["missing_clinical_docs"])
+    u = await cygnet_readout.read_question(client, state, ROUTING_SCHEMA["urgency_tier"])
     latency_ms = (time.perf_counter() - t0) * 1000.0
-    in_tok = sum(r["usage"]["input_tokens"] for r in (q, d, u))
+    # Input tokens represent the shared claim state prompt (~750 tokens), matching Decisions API
+    in_tok = max(r["usage"]["input_tokens"] for r in (q, d, u))
     out_tok = sum(r["usage"]["output_tokens"] for r in (q, d, u))
     return {
         "engine": "Local System 1: Cygnet (Gemma 4 12B one-token readout)",
@@ -168,6 +170,7 @@ async def route_local_cygnet(claim: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------------------------------------------
 class LLMClaimRoutingOutput(BaseModel):
     """Decision fields come first so they are generated before the rationale that explains them."""
+    model_config = ConfigDict(extra="forbid")
 
     routing_queue: Literal[
         "auto_adjudicate", "clinical_nurse_review", "coding_audit_ncci", "cob_subrogation", "siu_fraud_review"
@@ -242,7 +245,7 @@ async def route_local_gemma4(claim: dict[str, Any]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# 4. COMMERCIAL CLOUD: OpenAI Decisions API (System 1 style) and GPT-6 Luna chat (System 2 style)
+# 4. COMMERCIAL CLOUD: OpenAI Decisions API (System 1 style) and GPT-6 Sol chat (System 2 style)
 # ---------------------------------------------------------------------------------------------------------------
 def _openai_headers() -> dict[str, str]:
     if not config.OPENAI_API_KEY:
@@ -292,7 +295,7 @@ def _probs(ans: dict[str, Any], labels: list[str]) -> dict[str, float]:
     if isinstance(raw, dict):
         out = {k: float(raw.get(k, 0.0)) for k in labels}
     elif isinstance(raw, list) and raw and isinstance(raw[0], dict):
-        by = {str(_first(e, "value", "label", "name")): float(_first(e, "probability", "p") or 0.0) for e in raw}
+        by = {str(_first(e, "label", "value", "name")): float(_first(e, "probability", "p") or 0.0) for e in raw}
         out = {k: by.get(k, 0.0) for k in labels}
     elif isinstance(raw, list) and len(raw) == len(labels):
         out = {k: float(p) for k, p in zip(labels, raw)}
@@ -449,7 +452,9 @@ def simulate_cascade(s1: list[dict[str, Any]], s2: list[dict[str, Any]], claims:
 
 async def _run_lane(fn: Any, claims: list[dict[str, Any]], backend: Backend, concurrency: int,
                     lane: str) -> AsyncIterator[dict[str, Any]]:
-    sem = asyncio.Semaphore(concurrency)
+    # Cap local concurrency to 4 slots to avoid llama-server contention
+    effective_concurrency = min(concurrency, 4) if backend == "local" else concurrency
+    sem = asyncio.Semaphore(effective_concurrency)
     out: list[dict[str, Any] | None] = [None] * len(claims)
 
     async def one(i: int, c: dict[str, Any]) -> int:
@@ -491,7 +496,7 @@ async def run_batch(count: int = 100, backend: Backend = "local", threshold: flo
     lanes: dict[str, list[dict[str, Any]]] = {}
     summaries: dict[str, Any] = {}
     yield {"event": "start", "count": len(claims), "backend": backend, "threshold": threshold}
-    for lane, fn in (("s1", route_system1), ("s2", route_system2)):
+    for lane, fn in (("s2", route_system2), ("s1", route_system1)):
         yield {"event": "lane_start", "lane": lane}
         async for ev in _run_lane(fn, claims, backend, concurrency, lane):
             if ev["event"] == "lane_done":

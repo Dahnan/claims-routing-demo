@@ -135,3 +135,26 @@ def test_decisions_payload_formatting():
     # urgency_tier levels have 'label' and 'description'
     assert "label" in q_dict["urgency_tier"]["levels"][0]
     assert "description" in q_dict["urgency_tier"]["levels"][0]
+
+
+def test_llm_claim_routing_output_schema_forbids_extra():
+    schema = b.LLMClaimRoutingOutput.model_json_schema()
+    assert schema.get("additionalProperties") is False
+
+
+def test_probs_parses_score_with_labels_correctly():
+    # OpenAI Decisions API score response returns objects with both 'value' (int) and 'label' (str)
+    raw_answer = {
+        "name": "urgency_tier",
+        "probabilities": [
+            {"value": 0, "label": "standard_30_day", "probability": 0.85},
+            {"value": 1, "label": "expedited_72_hr", "probability": 0.15},
+            {"value": 2, "label": "stat_24_hr", "probability": 0.0},
+        ],
+    }
+    labels = ["standard_30_day", "expedited_72_hr", "stat_24_hr"]
+    probs = b._probs(raw_answer, labels)
+    assert probs["standard_30_day"] == pytest.approx(0.85)
+    assert probs["expedited_72_hr"] == pytest.approx(0.15)
+    assert probs["stat_24_hr"] == pytest.approx(0.0)
+

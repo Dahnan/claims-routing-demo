@@ -22,7 +22,7 @@ Live interactive architectural bake-off and production reference implementation 
 | **Output Tokens** | **3 tokens** (1 token / question) | **110 – 140 tokens** | 3 tokens (routine) / ~120 tokens (escalated) |
 | **Latency (P50)** | **~500 – 600 ms** (cold) / **~80 ms** (hot) | **~2,800 – 3,200 ms** | **~600 ms** (blended) |
 | **Reasoning Artifact** | Calibrated probability distribution | 2-sentence clinical & coding rationale | Probabilities on clean, rationale on escalated |
-| **Annual Scale Cost** | ~$146,000 / year (100k claims/day) | ~$2,460,000 / year (100k claims/day) | **~$615,000 / year (75% savings)** |
+| **Annual Scale Cost** | ~$1,460,000 / year (1M claims/day) | ~$24,600,000 / year (1M claims/day) | **~$6,150,000 / year (75% savings)** |
 
 ---
 

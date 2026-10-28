@@ -59,6 +59,7 @@ app.add_middleware(
 )
 
 HTML_PATH = Path(__file__).resolve().parent / "index.html"
+SLIDES_PATH = Path(__file__).resolve().parent / "slides.html"
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -94,6 +95,13 @@ async def serve_index():
     if not HTML_PATH.exists():
         return HTMLResponse("<h1>index.html not found. Building dashboard...</h1>", status_code=503)
     return FileResponse(HTML_PATH, media_type="text/html")
+
+
+@app.get("/slides", response_class=HTMLResponse)
+async def serve_slides():
+    if not SLIDES_PATH.exists():
+        return HTMLResponse("<h1>slides.html not found.</h1>", status_code=404)
+    return FileResponse(SLIDES_PATH, media_type="text/html")
 
 
 @app.get("/api/claims")

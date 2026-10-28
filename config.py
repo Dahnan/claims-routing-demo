@@ -33,13 +33,21 @@ DEFAULT_THRESHOLD = _f("CASCADE_THRESHOLD", 0.90)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 OPENAI_DECISIONS_MODEL = os.getenv("OPENAI_DECISIONS_MODEL", "gpt-6-luna")
-OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-6-luna")
+OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-6-sol")
 
 # --- Pricing, USD per 1M tokens. Local runs report the *equivalent* API cost of the same paradigm. ---
+# System 1 (Decisions API): single forward pass, zero generation ($0.10 / 1M input, $0.00 output)
+# System 2 (Generative LLM - GPT-6 Sol): commercial frontier tier ($2.00 / 1M input, $10.00 / 1M output)
 PRICING = {
-    "decisions": {"input": 0.10, "output": 0.00},  # System 1 style (Decisions API)
-    "chat": {"input": 0.10, "output": 0.50},       # System 2 style (Chat Completions)
+    "decisions": {
+        "input": _f("PRICING_DECISIONS_INPUT", 0.10),
+        "output": _f("PRICING_DECISIONS_OUTPUT", 0.00),
+    },
+    "chat": {
+        "input": _f("PRICING_CHAT_INPUT", 2.00),
+        "output": _f("PRICING_CHAT_OUTPUT", 10.00),
+    },
 }
 
 # --- Scale economics ---
-CLAIMS_PER_DAY = int(os.getenv("CLAIMS_PER_DAY", 100_000))
+CLAIMS_PER_DAY = int(os.getenv("CLAIMS_PER_DAY", 1_000_000))

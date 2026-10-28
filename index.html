@@ -1,48 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>System 1 vs. System 2 Claims Router — Architectural Bake-Off</title>
-  <meta name="description" content="Interactive live comparison between System 1 single-token decision models (Cygnet) and System 2 autoregressive LLMs (Gemma 4 12B) for US health insurance claims routing.">
+  <meta name="description"
+    content="Interactive live comparison between System 1 single-token decision models (Cygnet) and System 2 autoregressive LLMs (Gemma 4 12B) for US health insurance claims routing.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <style>
     :root {
-      --bg: #090d16;
-      --card-bg: rgba(17, 24, 39, 0.75);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --card-border-hover: rgba(255, 255, 255, 0.16);
-      --text-main: #f3f4f6;
-      --text-muted: #9ca3af;
-      --text-dim: #6b7280;
-      
-      --s1-teal: #14b8a6;
-      --s1-teal-glow: rgba(20, 184, 166, 0.25);
-      --s2-amber: #f59e0b;
-      --s2-amber-glow: rgba(245, 158, 11, 0.25);
-      --cascade-purple: #8b5cf6;
-      --cascade-glow: rgba(139, 92, 246, 0.25);
-      
-      --accent-green: #10b981;
-      --accent-red: #ef4444;
-      --accent-blue: #3b82f6;
+      /* Surfaces & Base */
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --card-border-hover: #cbd5e1;
+      --surface-muted: #f1f5f9;
 
+      /* Typography */
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+
+      /* Palette */
+      --brand-navy: #002677;
+      --brand-blue: #003da5;
+      --brand-orange: #e85d04;
+      --brand-orange-hover: #d95300;
+
+      /* Consistent Component Color Scheme: S2 -> S1 -> Cascade */
+      /* System 2: Generative LLM Baseline (Orange) */
+      --s2-orange: #e85d04;
+      --s2-orange-glow: rgba(232, 93, 4, 0.20);
+      --s2-bg: #fff7ed;
+      --s2-border: #fed7aa;
+
+      /* System 1: One-Token Readout Innovation (Navy/Blue) */
+      --s1-blue: #003da5;
+      --s1-blue-glow: rgba(0, 61, 165, 0.20);
+      --s1-bg: #f0f7ff;
+      --s1-border: #bae6fd;
+
+      /* Confidence Cascade: Intelligent Gated Router (Teal / Deep Emerald) */
+      --cascade-teal: #0f766e;
+      --cascade-teal-glow: rgba(15, 118, 110, 0.20);
+      --cascade-bg: #f0fdfa;
+      --cascade-border: #99f6e4;
+
+      /* Functional Healthcare Status Accents */
+      --accent-green: #15803d;
+      --accent-red: #dc2626;
+      --accent-blue: #0284c7;
+
+      /* Radii & Shadows */
       --radius-sm: 6px;
       --radius-md: 10px;
-      --radius-lg: 16px;
+      --radius-lg: 14px;
       --radius-full: 9999px;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 4px 12px -2px rgba(0, 38, 119, 0.04);
+      --shadow-card-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 10px 20px -3px rgba(0, 38, 119, 0.06);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       background-color: var(--bg);
-      background-image: 
-        radial-gradient(circle at 15% 15%, rgba(20, 184, 166, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+      background-image:
+        radial-gradient(circle at 10% 10%, rgba(0, 61, 165, 0.03) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(232, 93, 4, 0.03) 0%, transparent 40%);
       color: var(--text-main);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       line-height: 1.5;
@@ -51,20 +88,23 @@
       flex-direction: column;
     }
 
-    code, pre, .mono {
+    code,
+    pre,
+    .mono {
       font-family: 'JetBrains Mono', monospace;
     }
 
     /* --- Header Bar --- */
     header {
-      background: rgba(11, 15, 25, 0.85);
-      backdrop-filter: blur(12px);
+      background: #ffffff;
       border-bottom: 1px solid var(--card-border);
       position: sticky;
       top: 0;
       z-index: 50;
       padding: 0.85rem 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
     }
+
     .header-inner {
       max-width: 1440px;
       margin: 0 auto;
@@ -74,24 +114,28 @@
       gap: 1rem;
       flex-wrap: wrap;
     }
+
     .brand-group {
       display: flex;
       align-items: center;
       gap: 0.85rem;
     }
+
     .brand-icon {
-      width: 38px;
-      height: 38px;
+      width: 42px;
+      height: 42px;
       border-radius: var(--radius-md);
-      background: linear-gradient(135deg, var(--s1-teal), var(--cascade-purple));
+      background: var(--brand-navy);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 800;
       color: #fff;
-      font-size: 1.1rem;
-      box-shadow: 0 0 15px rgba(20, 184, 166, 0.4);
+      font-size: 0.95rem;
+      letter-spacing: -0.02em;
+      box-shadow: 0 2px 8px rgba(0, 38, 119, 0.25);
     }
+
     .brand-title h1 {
       font-size: 1.15rem;
       font-weight: 700;
@@ -99,7 +143,9 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      color: var(--brand-navy);
     }
+
     .brand-title p {
       font-size: 0.78rem;
       color: var(--text-muted);
@@ -112,40 +158,46 @@
       gap: 0.5rem;
       flex-wrap: wrap;
     }
+
     .badge {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      padding: 0.3rem 0.65rem;
+      padding: 0.32rem 0.7rem;
       border-radius: var(--radius-full);
       font-size: 0.75rem;
       font-weight: 500;
-      background: rgba(255, 255, 255, 0.04);
+      background: var(--surface-muted);
       border: 1px solid var(--card-border);
+      color: var(--text-main);
     }
+
     .badge-dot {
       width: 7px;
       height: 7px;
       border-radius: 50%;
       background: var(--text-dim);
     }
+
     .badge-dot.live {
       background: var(--accent-green);
-      box-shadow: 0 0 8px var(--accent-green);
+      box-shadow: 0 0 6px rgba(21, 128, 61, 0.4);
     }
+
     .badge-dot.warn {
-      background: var(--s2-amber);
-      box-shadow: 0 0 8px var(--s2-amber);
+      background: var(--s2-orange);
+      box-shadow: 0 0 6px rgba(232, 93, 4, 0.4);
     }
 
     /* Mode Switcher Pill */
     .mode-switcher {
       display: flex;
-      background: rgba(0, 0, 0, 0.35);
+      background: #e2e8f0;
       border: 1px solid var(--card-border);
       border-radius: var(--radius-full);
       padding: 3px;
     }
+
     .mode-btn {
       background: transparent;
       border: none;
@@ -157,11 +209,13 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .mode-btn.active {
-      background: rgba(255, 255, 255, 0.12);
-      color: var(--text-main);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      background: #ffffff;
+      color: var(--brand-navy);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
     }
+
     .mode-btn:disabled {
       opacity: 0.4;
       cursor: not-allowed;
@@ -170,8 +224,9 @@
     /* --- Navigation Tabs --- */
     .nav-tabs-bar {
       border-bottom: 1px solid var(--card-border);
-      background: rgba(11, 15, 25, 0.4);
+      background: #ffffff;
     }
+
     .nav-tabs {
       max-width: 1440px;
       margin: 0 auto;
@@ -179,6 +234,7 @@
       gap: 1.5rem;
       padding: 0 1.5rem;
     }
+
     .tab-btn {
       background: none;
       border: none;
@@ -190,10 +246,15 @@
       position: relative;
       transition: color 0.2s;
     }
-    .tab-btn:hover { color: var(--text-main); }
-    .tab-btn.active {
-      color: var(--s1-teal);
+
+    .tab-btn:hover {
+      color: var(--brand-navy);
     }
+
+    .tab-btn.active {
+      color: var(--brand-blue);
+    }
+
     .tab-btn.active::after {
       content: '';
       position: absolute;
@@ -201,8 +262,7 @@
       left: 0;
       right: 0;
       height: 2px;
-      background: var(--s1-teal);
-      box-shadow: 0 0 8px var(--s1-teal);
+      background: var(--brand-blue);
     }
 
     /* --- Main Container --- */
@@ -214,20 +274,27 @@
       padding: 1.5rem;
     }
 
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    .tab-content {
+      display: none;
+    }
 
-    /* Glass Cards */
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Enterprise White Cards */
     .card {
       background: var(--card-bg);
-      backdrop-filter: blur(12px);
       border: 1px solid var(--card-border);
       border-radius: var(--radius-lg);
       padding: 1.25rem;
-      transition: border-color 0.2s;
+      box-shadow: var(--shadow-card);
+      transition: box-shadow 0.2s, border-color 0.2s;
     }
+
     .card:hover {
       border-color: var(--card-border-hover);
+      box-shadow: var(--shadow-card-hover);
     }
 
     /* Layout Grids */
@@ -237,39 +304,50 @@
       gap: 1.25rem;
       align-items: start;
     }
+
     @media (max-width: 1024px) {
-      .grid-inspector { grid-template-columns: 1fr; }
+      .grid-inspector {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Form Controls */
     .form-group {
       margin-bottom: 1rem;
     }
+
     .form-label {
       display: block;
-      font-size: 0.78rem;
-      font-weight: 600;
+      font-size: 0.76rem;
+      font-weight: 700;
       color: var(--text-muted);
-      margin-bottom: 0.35rem;
+      margin-bottom: 0.4rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    select, input, textarea {
+
+    select,
+    input,
+    textarea {
       width: 100%;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid var(--card-border);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
       border-radius: var(--radius-md);
       padding: 0.6rem 0.85rem;
       color: var(--text-main);
       font-family: inherit;
       font-size: 0.88rem;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    select:focus, input:focus, textarea:focus {
-      border-color: var(--s1-teal);
-      box-shadow: 0 0 0 2px var(--s1-teal-glow);
+
+    select:focus,
+    input:focus,
+    textarea:focus {
+      border-color: var(--brand-blue);
+      box-shadow: 0 0 0 3px rgba(0, 61, 165, 0.15);
     }
+
     textarea {
       resize: vertical;
       font-family: 'JetBrains Mono', monospace;
@@ -291,26 +369,34 @@
       border: none;
       transition: all 0.2s;
     }
+
     .btn-primary {
-      background: linear-gradient(135deg, var(--s1-teal), #0d9488);
+      background: linear-gradient(135deg, var(--brand-navy), var(--brand-blue));
       color: #fff;
-      box-shadow: 0 4px 14px rgba(20, 184, 166, 0.3);
+      box-shadow: 0 3px 10px rgba(0, 38, 119, 0.22);
     }
+
     .btn-primary:hover:not(:disabled) {
-      filter: brightness(1.1);
+      filter: brightness(1.08);
       transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(0, 38, 119, 0.28);
     }
+
     .btn-primary:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
+
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.06);
+      background: #ffffff;
       color: var(--text-main);
-      border: 1px solid var(--card-border);
+      border: 1px solid #cbd5e1;
+      box-shadow: var(--shadow-sm);
     }
+
     .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: #f8fafc;
+      border-color: #94a3b8;
     }
 
     /* Slider Row */
@@ -319,19 +405,21 @@
       align-items: center;
       gap: 1rem;
     }
+
     .slider-row input[type="range"] {
       flex: 1;
       height: 6px;
-      accent-color: var(--cascade-purple);
-      background: rgba(255, 255, 255, 0.1);
+      accent-color: var(--cascade-teal);
+      background: #e2e8f0;
       border-radius: var(--radius-full);
       padding: 0;
       border: none;
     }
+
     .slider-val {
       font-size: 0.88rem;
       font-weight: 700;
-      color: var(--cascade-purple);
+      color: var(--cascade-teal);
       min-width: 44px;
       text-align: right;
     }
@@ -343,16 +431,28 @@
       gap: 0.4rem;
       margin: 0.5rem 0 1rem;
     }
+
     .tag {
       font-size: 0.72rem;
       font-weight: 600;
       padding: 0.2rem 0.5rem;
       border-radius: var(--radius-sm);
-      background: rgba(255, 255, 255, 0.06);
+      background: #f1f5f9;
       color: var(--text-muted);
+      border: 1px solid var(--card-border);
     }
-    .tag-easy { color: var(--accent-green); background: rgba(16, 185, 129, 0.1); }
-    .tag-hard { color: var(--s2-amber); background: rgba(245, 158, 11, 0.1); }
+
+    .tag-easy {
+      color: var(--accent-green);
+      background: #dcfce7;
+      border-color: #bbf7d0;
+    }
+
+    .tag-hard {
+      color: var(--s2-orange);
+      background: #fff7ed;
+      border-color: #fed7aa;
+    }
 
     /* Results Side-by-Side */
     .results-grid {
@@ -361,16 +461,28 @@
       gap: 1.25rem;
       margin-bottom: 1.25rem;
     }
+
     @media (max-width: 768px) {
-      .results-grid { grid-template-columns: 1fr; }
+      .results-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .result-card {
-      border-top: 3px solid transparent;
+      border-top: 4px solid transparent;
     }
-    .result-card.s1 { border-top-color: var(--s1-teal); }
-    .result-card.s2 { border-top-color: var(--s2-amber); }
-    .result-card.cascade { border-top-color: var(--cascade-purple); }
+
+    .result-card.s2 {
+      border-top-color: var(--s2-orange);
+    }
+
+    .result-card.s1 {
+      border-top-color: var(--s1-blue);
+    }
+
+    .result-card.cascade {
+      border-top-color: var(--cascade-teal);
+    }
 
     .result-header {
       display: flex;
@@ -380,6 +492,7 @@
       padding-bottom: 0.75rem;
       border-bottom: 1px solid var(--card-border);
     }
+
     .result-title {
       font-size: 0.95rem;
       font-weight: 700;
@@ -387,38 +500,60 @@
       align-items: center;
       gap: 0.5rem;
     }
-    .pill-s1 { color: var(--s1-teal); }
-    .pill-s2 { color: var(--s2-amber); }
-    .pill-casc { color: var(--cascade-purple); }
+
+    .pill-s2 {
+      color: var(--s2-orange);
+    }
+
+    .pill-s1 {
+      color: var(--s1-blue);
+    }
+
+    .pill-casc {
+      color: var(--cascade-teal);
+    }
 
     .stat-chip {
       font-size: 0.75rem;
       padding: 0.2rem 0.5rem;
       border-radius: var(--radius-sm);
-      background: rgba(255, 255, 255, 0.05);
+      background: #f1f5f9;
       color: var(--text-muted);
+      border: 1px solid var(--card-border);
     }
 
     /* Queue Winner Banner */
     .queue-winner {
       padding: 0.75rem 1rem;
       border-radius: var(--radius-md);
-      background: rgba(0, 0, 0, 0.3);
+      background: #f8fafc;
       border: 1px solid var(--card-border);
       margin-bottom: 1rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
+
+    .queue-winner.s2 {
+      background: var(--s2-bg);
+      border-color: var(--s2-border);
+    }
+
+    .queue-winner.s1 {
+      background: var(--s1-bg);
+      border-color: var(--s1-border);
+    }
+
     .queue-name {
       font-size: 1.05rem;
       font-weight: 700;
       letter-spacing: -0.01em;
     }
+
     .confidence-score {
       font-size: 1.15rem;
       font-weight: 800;
-      color: var(--s1-teal);
+      color: var(--s1-blue);
     }
 
     /* Sub-readouts */
@@ -430,9 +565,11 @@
       padding-top: 0.75rem;
       border-top: 1px solid var(--card-border);
     }
+
     .sub-metric {
       font-size: 0.75rem;
     }
+
     .sub-metric-val {
       font-size: 0.88rem;
       font-weight: 600;
@@ -442,20 +579,20 @@
 
     /* Clinical Rationale Box */
     .rationale-box {
-      background: rgba(245, 158, 11, 0.04);
-      border-left: 3px solid var(--s2-amber);
+      background: var(--surface-muted);
+      border: 1px solid var(--card-border);
       padding: 0.85rem 1rem;
-      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      border-radius: var(--radius-md);
       font-size: 0.85rem;
-      color: #e5e7eb;
+      color: #334155;
       line-height: 1.6;
       margin-bottom: 1rem;
     }
 
     /* Cascade Banner */
     .cascade-banner {
-      background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(20, 184, 166, 0.08));
-      border: 1px solid rgba(139, 92, 246, 0.35);
+      background: var(--cascade-bg);
+      border: 1px solid var(--cascade-border);
       border-radius: var(--radius-lg);
       padding: 1.25rem 1.5rem;
       display: flex;
@@ -464,15 +601,18 @@
       gap: 1.5rem;
       margin-top: 1rem;
       flex-wrap: wrap;
+      box-shadow: 0 2px 8px rgba(15, 118, 110, 0.08);
     }
+
     .cascade-verdict-title {
       font-size: 1rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--cascade-teal);
     }
+
     .cascade-verdict-desc {
       font-size: 0.82rem;
-      color: var(--text-muted);
+      color: #334155;
       margin-top: 0.2rem;
     }
 
@@ -484,9 +624,11 @@
       margin-bottom: 1.5rem;
       align-items: end;
     }
+
     .lane-container {
       margin-bottom: 1.5rem;
     }
+
     .lane-header {
       display: flex;
       justify-content: space-between;
@@ -495,51 +637,73 @@
       font-weight: 600;
       margin-bottom: 0.4rem;
     }
+
     .progress-track {
-      height: 12px;
-      background: rgba(255, 255, 255, 0.06);
+      height: 14px;
+      background: #e2e8f0;
       border-radius: var(--radius-full);
       overflow: hidden;
       position: relative;
     }
+
     .progress-fill {
       height: 100%;
       width: 0%;
       border-radius: var(--radius-full);
       transition: width 0.15s ease-out;
     }
-    .progress-fill.s1 { background: linear-gradient(90deg, #0d9488, var(--s1-teal)); box-shadow: 0 0 12px var(--s1-teal); }
-    .progress-fill.s2 { background: linear-gradient(90deg, #d97706, var(--s2-amber)); box-shadow: 0 0 12px var(--s2-amber); }
-    .progress-fill.cascade { background: linear-gradient(90deg, #7c3aed, var(--cascade-purple)); box-shadow: 0 0 12px var(--cascade-purple); }
+
+    .progress-fill.s2 {
+      background: linear-gradient(90deg, #ea580c, var(--s2-orange));
+      box-shadow: 0 0 8px var(--s2-orange-glow);
+    }
+
+    .progress-fill.s1 {
+      background: linear-gradient(90deg, var(--brand-navy), var(--s1-blue));
+      box-shadow: 0 0 8px var(--s1-blue-glow);
+    }
+
+    .progress-fill.cascade {
+      background: linear-gradient(90deg, #0d9488, var(--cascade-teal));
+      box-shadow: 0 0 8px var(--cascade-teal-glow);
+    }
 
     /* Comparative Table */
     .table-container {
       overflow-x: auto;
       margin: 1.5rem 0;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--card-border);
     }
+
     table.comp-table {
       width: 100%;
       border-collapse: collapse;
       text-align: left;
       font-size: 0.86rem;
     }
-    table.comp-table th, table.comp-table td {
+
+    table.comp-table th,
+    table.comp-table td {
       padding: 0.85rem 1rem;
       border-bottom: 1px solid var(--card-border);
     }
+
     table.comp-table th {
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
-      background: rgba(0, 0, 0, 0.2);
+      background: #f8fafc;
     }
+
     table.comp-table tr:hover td {
-      background: rgba(255, 255, 255, 0.02);
+      background: #f8fafc;
     }
+
     .highlight-cell {
       font-weight: 700;
-      color: var(--s1-teal);
+      color: var(--cascade-teal);
     }
 
     /* Calculator Cards */
@@ -549,19 +713,29 @@
       gap: 1.25rem;
       margin-top: 1.5rem;
     }
+
     .calc-card {
-      background: rgba(0, 0, 0, 0.35);
+      background: #ffffff;
       border: 1px solid var(--card-border);
       border-radius: var(--radius-md);
       padding: 1.25rem;
       text-align: center;
+      box-shadow: var(--shadow-card);
+      transition: box-shadow 0.2s, transform 0.2s;
     }
+
+    .calc-card:hover {
+      box-shadow: var(--shadow-card-hover);
+      transform: translateY(-1px);
+    }
+
     .calc-num {
       font-size: 1.6rem;
       font-weight: 800;
       margin: 0.5rem 0 0.2rem;
       letter-spacing: -0.02em;
     }
+
     .calc-sub {
       font-size: 0.78rem;
       color: var(--text-muted);
@@ -571,50 +745,58 @@
     .prose-content {
       line-height: 1.7;
       font-size: 0.92rem;
-      color: #d1d5db;
+      color: #334155;
     }
+
     .prose-content h2 {
       font-size: 1.3rem;
-      color: #fff;
+      color: var(--brand-navy);
       margin: 1.5rem 0 0.75rem;
       padding-bottom: 0.35rem;
       border-bottom: 1px solid var(--card-border);
     }
+
     .prose-content h3 {
       font-size: 1.05rem;
-      color: var(--s1-teal);
+      color: var(--brand-blue);
       margin: 1.2rem 0 0.4rem;
     }
+
     .prose-content ul {
       padding-left: 1.5rem;
       margin-bottom: 1rem;
     }
+
     .formula-box {
-      background: rgba(0, 0, 0, 0.4);
+      background: #f1f5f9;
       border: 1px solid var(--card-border);
       border-radius: var(--radius-md);
       padding: 1rem 1.25rem;
       margin: 1rem 0;
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.88rem;
-      color: var(--s1-teal);
+      color: var(--brand-navy);
     }
 
     /* Spinner */
     .spinner {
       width: 14px;
       height: 14px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.4);
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       display: inline-block;
     }
+
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
   </style>
 </head>
+
 <body>
 
   <!-- ===================================================================== -->
@@ -627,9 +809,8 @@
         <div class="brand-title">
           <h1>
             Health Insurance Claims Router
-            <span class="badge" style="background: rgba(20, 184, 166, 0.15); color: var(--s1-teal); border: none;">Bake-Off</span>
           </h1>
-          <p>System 1 (Cygnet One-Token Readout) vs. System 2 (Gemma 4 12B Autoregressive JSON)</p>
+          <p id="brand-subtitle">System 2 (Gemma 4 12B Autoregressive JSON) vs. System 1 (Cygnet One-Token Readout)</p>
         </div>
       </div>
 
@@ -669,16 +850,21 @@
   <!-- NAVIGATION TABS                                                       -->
   <!-- ===================================================================== -->
   <div class="nav-tabs-bar">
-    <div class="nav-tabs">
-      <button class="tab-btn active" id="tab-btn-inspector" onclick="switchTab('inspector')">
-        Single-Claim Inspector
-      </button>
-      <button class="tab-btn" id="tab-btn-batch" onclick="switchTab('batch')">
-        Batch Race & Cascade Simulator
-      </button>
-      <button class="tab-btn" id="tab-btn-methodology" onclick="switchTab('methodology')">
-        Methodology & Schema
-      </button>
+    <div class="nav-tabs" style="display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; gap: 1.5rem;">
+        <button class="tab-btn active" id="tab-btn-inspector" onclick="switchTab('inspector')">
+          Single-Claim Inspector
+        </button>
+        <button class="tab-btn" id="tab-btn-batch" onclick="switchTab('batch')">
+          Batch Race & Cascade Simulator
+        </button>
+        <button class="tab-btn" id="tab-btn-methodology" onclick="switchTab('methodology')">
+          Methodology & Schema
+        </button>
+      </div>
+      <a href="/slides" target="_blank" style="text-decoration: none; font-size: 0.78rem; font-weight: 600; color: var(--brand-blue); display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.65rem; border-radius: 9999px; background: #f0f7ff; border: 1px solid #bae6fd; transition: all 0.2s;">
+        <span>📊 Presentation Slides ↗</span>
+      </a>
     </div>
   </div>
 
@@ -692,7 +878,7 @@
     <!-- ----------------------------------------------------------------- -->
     <div class="tab-content active" id="tab-inspector">
       <div class="grid-inspector">
-        
+
         <!-- Left Column: Claim Input & Controls -->
         <div class="card">
           <div class="form-group">
@@ -720,7 +906,8 @@
               <span class="slider-val mono" id="threshold-display">0.90</span>
             </div>
             <div class="slider-row" style="margin-top:0.4rem;">
-              <input type="range" id="cascade-threshold-input" min="0.50" max="0.99" step="0.01" value="0.90" oninput="onThresholdChange(this.value)">
+              <input type="range" id="cascade-threshold-input" min="0.50" max="0.99" step="0.01" value="0.90"
+                oninput="onThresholdChange(this.value)">
             </div>
           </div>
 
@@ -735,15 +922,56 @@
           </div>
         </div>
 
-        <!-- Right Column: Comparative Results -->
+        <!-- Right Column: Comparative Results (System 2 -> System 1 -> Cascade) -->
         <div>
           <div class="results-grid">
-            
-            <!-- System 1 Card -->
+
+            <!-- System 2 Card (Baseline LLM) -->
+            <div class="card result-card s2">
+              <div class="result-header">
+                <div class="result-title pill-s2">
+                  <span id="s2-card-title">System 2: Gemma 4 12B (JSON)</span>
+                </div>
+                <div style="display: flex; gap: 0.4rem;">
+                  <span class="stat-chip mono" id="s2-latency-chip">-- ms</span>
+                  <span class="stat-chip mono" id="s2-tokens-chip">-- tokens out</span>
+                </div>
+              </div>
+
+              <div class="queue-winner s2">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Adjudicated
+                    Route</div>
+                  <div class="queue-name mono" id="s2-winner-queue">--</div>
+                </div>
+                <div class="stat-chip"
+                  style="background: var(--s2-bg); color: var(--s2-orange); border-color: var(--s2-border); font-weight: 600;">
+                  Structured JSON
+                </div>
+              </div>
+
+              <div class="form-label">Clinical & Coding Rationale:</div>
+              <div class="rationale-box" id="s2-rationale-box">
+                Run evaluation to generate clinical rationale...
+              </div>
+
+              <div class="sub-readout-grid">
+                <div class="sub-metric">
+                  <span style="color: var(--text-muted);">Missing Docs:</span>
+                  <div class="sub-metric-val mono" id="s2-missing-docs-val">--</div>
+                </div>
+                <div class="sub-metric">
+                  <span style="color: var(--text-muted);">Urgency Tier:</span>
+                  <div class="sub-metric-val mono" id="s2-urgency-val">--</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- System 1 Card (One-Token Readout) -->
             <div class="card result-card s1">
               <div class="result-header">
                 <div class="result-title pill-s1">
-                  <span>System 1: Cygnet Readout</span>
+                  <span id="s1-card-title">System 1: Cygnet Readout</span>
                 </div>
                 <div style="display: flex; gap: 0.4rem;">
                   <span class="stat-chip mono" id="s1-latency-chip">-- ms</span>
@@ -751,9 +979,10 @@
                 </div>
               </div>
 
-              <div class="queue-winner">
+              <div class="queue-winner s1">
                 <div>
-                  <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Primary Route</div>
+                  <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Primary Route
+                  </div>
                   <div class="queue-name mono" id="s1-winner-queue">--</div>
                 </div>
                 <div class="confidence-score mono" id="s1-confidence-score">--%</div>
@@ -776,45 +1005,6 @@
               </div>
             </div>
 
-            <!-- System 2 Card -->
-            <div class="card result-card s2">
-              <div class="result-header">
-                <div class="result-title pill-s2">
-                  <span>System 2: Gemma 4 12B (JSON)</span>
-                </div>
-                <div style="display: flex; gap: 0.4rem;">
-                  <span class="stat-chip mono" id="s2-latency-chip">-- ms</span>
-                  <span class="stat-chip mono" id="s2-tokens-chip">-- tokens out</span>
-                </div>
-              </div>
-
-              <div class="queue-winner">
-                <div>
-                  <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Adjudicated Route</div>
-                  <div class="queue-name mono" id="s2-winner-queue">--</div>
-                </div>
-                <div class="stat-chip" style="background: rgba(245, 158, 11, 0.15); color: var(--s2-amber);">
-                  Structured JSON
-                </div>
-              </div>
-
-              <div class="form-label">Clinical & Coding Rationale:</div>
-              <div class="rationale-box" id="s2-rationale-box">
-                Run evaluation to generate clinical rationale...
-              </div>
-
-              <div class="sub-readout-grid">
-                <div class="sub-metric">
-                  <span style="color: var(--text-muted);">Missing Docs:</span>
-                  <div class="sub-metric-val mono" id="s2-missing-docs-val">--</div>
-                </div>
-                <div class="sub-metric">
-                  <span style="color: var(--text-muted);">Urgency Tier:</span>
-                  <div class="sub-metric-val mono" id="s2-urgency-val">--</div>
-                </div>
-              </div>
-            </div>
-
           </div>
 
           <!-- Cascade Verdict Banner -->
@@ -826,10 +1016,12 @@
               </div>
             </div>
             <div style="display: flex; gap: 0.75rem; align-items: center;">
-              <span class="badge" id="cascade-speedup-badge" style="background: rgba(255, 255, 255, 0.1); font-size: 0.82rem;">
+              <span class="badge" id="cascade-speedup-badge"
+                style="background: #ffffff; border-color: var(--cascade-border); color: var(--cascade-teal); font-weight: 700; font-size: 0.82rem;">
                 -- Speedup
               </span>
-              <span class="badge" id="cascade-match-badge" style="background: rgba(255, 255, 255, 0.1); font-size: 0.82rem;">
+              <span class="badge" id="cascade-match-badge"
+                style="background: #ffffff; border-color: var(--card-border); font-size: 0.82rem;">
                 Match: --
               </span>
             </div>
@@ -861,7 +1053,8 @@
               <span class="slider-val mono" id="batch-threshold-val">0.90</span>
             </div>
             <div class="slider-row" style="margin-top:0.4rem;">
-              <input type="range" id="batch-threshold-slider" min="0.50" max="0.99" step="0.01" value="0.90" oninput="onBatchThresholdSlider(this.value)">
+              <input type="range" id="batch-threshold-slider" min="0.50" max="0.99" step="0.01" value="0.90"
+                oninput="onBatchThresholdSlider(this.value)">
             </div>
           </div>
 
@@ -869,8 +1062,8 @@
             <label class="form-label" for="batch-concurrency-select">GPU Slot Concurrency</label>
             <select id="batch-concurrency-select">
               <option value="1">1 Stream (Serial)</option>
-              <option value="2">2 Slots</option>
-              <option value="4" selected>4 Slots (Default)</option>
+              <option value="2" selected>2 Slots (Balanced - Recommended)</option>
+              <option value="4">4 Slots</option>
               <option value="8">8 Slots (Max Parallel)</option>
             </select>
           </div>
@@ -883,20 +1076,10 @@
           </div>
         </div>
 
-        <!-- Live Racing Lanes -->
+        <!-- Live Racing Lanes (System 2 runs first -> System 1 -> Cascade) -->
         <div class="lane-container">
           <div class="lane-header">
-            <span class="pill-s1">⚡ System 1 (Cygnet One-Token Readout)</span>
-            <span class="mono" id="s1-lane-status">Idle</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill s1" id="s1-progress-bar"></div>
-          </div>
-        </div>
-
-        <div class="lane-container">
-          <div class="lane-header">
-            <span class="pill-s2">🧠 System 2 (Gemma 4 12B Autoregressive JSON)</span>
+            <span class="pill-s2" id="s2-lane-title">System 2 (Gemma 4 12B Autoregressive JSON)</span>
             <span class="mono" id="s2-lane-status">Idle</span>
           </div>
           <div class="progress-track">
@@ -906,7 +1089,17 @@
 
         <div class="lane-container">
           <div class="lane-header">
-            <span class="pill-casc">🔄 Confidence Cascade (Gated Routing)</span>
+            <span class="pill-s1" id="s1-lane-title">System 1 (Cygnet One-Token Readout)</span>
+            <span class="mono" id="s1-lane-status">Idle</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill s1" id="s1-progress-bar"></div>
+          </div>
+        </div>
+
+        <div class="lane-container">
+          <div class="lane-header">
+            <span class="pill-casc">Confidence Cascade (Gated Routing)</span>
             <span class="mono" id="cascade-lane-status">Idle</span>
           </div>
           <div class="progress-track">
@@ -917,9 +1110,11 @@
 
       <!-- Comparative Performance & Economics Table -->
       <div class="card">
-        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem;">Bake-Off Results & Production Metrics</h2>
+        <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--brand-navy);">Results &
+          Production Metrics</h2>
         <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
-          Drag the threshold slider above to observe instant client-side re-simulation of the cascade economics with zero re-computation.
+          Drag the threshold slider above to observe instant client-side re-simulation of the cascade economics with
+          zero re-computation.
         </p>
 
         <div class="table-container">
@@ -927,74 +1122,74 @@
             <thead>
               <tr>
                 <th>Metric</th>
-                <th style="color: var(--s1-teal);">System 1 Only</th>
-                <th style="color: var(--s2-amber);">System 2 Only</th>
-                <th style="color: var(--cascade-purple);">Confidence Cascade</th>
+                <th style="color: var(--s2-orange);">System 2 Only (Baseline)</th>
+                <th style="color: var(--s1-blue);">System 1 Only</th>
+                <th style="color: var(--cascade-teal);">Confidence Cascade</th>
               </tr>
             </thead>
             <tbody id="metrics-table-body">
               <tr>
                 <td>Routing Queue Accuracy</td>
-                <td id="t-s1-acc" class="mono">--</td>
                 <td id="t-s2-acc" class="mono">--</td>
+                <td id="t-s1-acc" class="mono">--</td>
                 <td id="t-casc-acc" class="mono highlight-cell">--</td>
               </tr>
               <tr>
                 <td>P50 Latency</td>
-                <td id="t-s1-p50" class="mono highlight-cell">--</td>
                 <td id="t-s2-p50" class="mono">--</td>
+                <td id="t-s1-p50" class="mono highlight-cell">--</td>
                 <td id="t-casc-p50" class="mono">--</td>
               </tr>
               <tr>
                 <td>P95 Latency</td>
-                <td id="t-s1-p95" class="mono">--</td>
                 <td id="t-s2-p95" class="mono">--</td>
+                <td id="t-s1-p95" class="mono">--</td>
                 <td id="t-casc-p95" class="mono">--</td>
               </tr>
               <tr>
                 <td>Escalation Rate (% to LLM)</td>
-                <td class="mono">0.0%</td>
                 <td class="mono">100.0%</td>
+                <td class="mono">0.0%</td>
                 <td id="t-casc-esc" class="mono">--</td>
               </tr>
               <tr>
                 <td>Output Tokens per Claim</td>
-                <td class="mono">3</td>
                 <td class="mono">~115</td>
+                <td class="mono">3</td>
                 <td id="t-casc-tokens" class="mono">--</td>
               </tr>
               <tr>
                 <td>Batch GPU Energy</td>
-                <td id="t-s1-wh" class="mono">-- Wh</td>
                 <td id="t-s2-wh" class="mono">-- Wh</td>
+                <td id="t-s1-wh" class="mono">-- Wh</td>
                 <td id="t-casc-wh" class="mono">-- Wh</td>
               </tr>
               <tr>
-                <td>Projected Cost (100k claims/day)</td>
-                <td id="t-s1-cost" class="mono">--</td>
+                <td>Projected Cost (1M claims/day)</td>
                 <td id="t-s2-cost" class="mono">--</td>
+                <td id="t-s1-cost" class="mono">--</td>
                 <td id="t-casc-cost" class="mono highlight-cell">--</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <!-- Annual Economics Projection Cards -->
+        <!-- Annual Economics Projection Cards (1M claims/day) -->
         <div class="calc-grid">
           <div class="calc-card">
             <div class="form-label">System 2 Annual Cost</div>
-            <div class="calc-num mono" style="color: var(--s2-amber);" id="annual-s2-cost">$2,460,000</div>
-            <div class="calc-sub">100,000 claims/day @ $0.50/1M out</div>
-          </div>
-          <div class="calc-card">
-            <div class="form-label">Confidence Cascade Annual Cost</div>
-            <div class="calc-num mono" style="color: var(--cascade-purple);" id="annual-casc-cost">$615,000</div>
-            <div class="calc-sub" id="annual-savings-sub">Savings: $1,845,000 / yr (75%)</div>
+            <div class="calc-num mono" style="color: var(--s2-orange);" id="annual-s2-cost">--</div>
+            <div class="calc-sub">1,000,000 claims/day projection</div>
           </div>
           <div class="calc-card">
             <div class="form-label">System 1 Annual Cost</div>
-            <div class="calc-num mono" style="color: var(--s1-teal);" id="annual-s1-cost">$146,000</div>
+            <div class="calc-num mono" style="color: var(--s1-blue);" id="annual-s1-cost">--</div>
             <div class="calc-sub">Zero output token cost</div>
+          </div>
+          <div class="calc-card">
+            <div class="form-label">Confidence Cascade Annual Cost</div>
+            <div class="calc-num mono" style="color: var(--cascade-teal);" id="annual-casc-cost">--</div>
+            <div class="calc-sub" id="annual-savings-sub">Run batch race to project annual savings</div>
           </div>
         </div>
 
@@ -1015,9 +1210,12 @@
 
         <h3>1. Single-Token Forward Pass Architecture</h3>
         <p>
-          System 1 models evaluate state against a declared schema in a single forward pass without autoregressive text generation.
-          The prompt presents lettered choices (A., B., C...) and extracts top-20 logprobs from the single generated answer token.
-          Gemma 4 has multiple surface tokens for letters; mass is summed across duplicate tokens and scaled by calibration temperature:
+          System 1 models evaluate state against a declared schema in a single forward pass without autoregressive text
+          generation.
+          The prompt presents lettered choices (A., B., C...) and extracts top-20 logprobs from the single generated
+          answer token.
+          Gemma 4 has multiple surface tokens for letters; mass is summed across duplicate tokens and scaled by
+          calibration temperature:
         </p>
         <div class="formula-box">
           P(choice_i) = p_i^(1 / T) / &Sigma;_j p_j^(1 / T) &nbsp;&nbsp;[Cygnet Recipe T = 3.4]
@@ -1025,21 +1223,30 @@
 
         <h3>2. Apples-to-Apples Model Parity</h3>
         <p>
-          Both local System 1 and System 2 backends execute on the <strong>exact same model weights</strong> (<code class="mono">gemma-4-12B-it-Q8_0.gguf</code>)
-          running on the RTX 4090. Thus, any observed latency difference (e.g. 50ms vs 2,500ms) and token savings are strictly
+          Both local System 1 and System 2 backends execute on the <strong>exact same model weights</strong> (<code
+            class="mono">gemma-4-12B-it-Q8_0.gguf</code>)
+          running on the RTX 4090. Thus, any observed latency difference (e.g. 50ms vs 2,500ms) and token savings are
+          strictly
           attributable to the inference paradigm, rather than differences in parameter count.
         </p>
 
         <h3>3. Multi-Question Adjudication Rubric</h3>
         <ul>
-          <li><strong>routing_queue (5-choice):</strong> <code>auto_adjudicate</code>, <code>clinical_nurse_review</code>, <code>coding_audit_ncci</code>, <code>cob_subrogation</code>, <code>siu_fraud_review</code>.</li>
-          <li><strong>missing_clinical_docs (noul / binary):</strong> Calibrated probability of whether an operative report, pathology report, or imaging disc is missing from claim attachments.</li>
-          <li><strong>urgency_tier (score / 3-level):</strong> <code>standard_30_day</code>, <code>expedited_72_hr</code>, <code>stat_24_hr</code>.</li>
+          <li><strong>routing_queue (5-choice):</strong> <code>auto_adjudicate</code>,
+            <code>clinical_nurse_review</code>, <code>coding_audit_ncci</code>, <code>cob_subrogation</code>,
+            <code>siu_fraud_review</code>.
+          </li>
+          <li><strong>missing_clinical_docs (noul / binary):</strong> Calibrated probability of whether an operative
+            report, pathology report, or imaging disc is missing from claim attachments.</li>
+          <li><strong>urgency_tier (score / 3-level):</strong> <code>standard_30_day</code>,
+            <code>expedited_72_hr</code>, <code>stat_24_hr</code>.
+          </li>
         </ul>
 
         <h3>4. Confidence-Gated Cascade</h3>
         <p>
-          Clear-cut claims (confidence &ge; 0.90) are auto-adjudicated instantly by System 1 in &lt;100ms. Ambiguous edge cases (confidence &lt; 0.90)
+          Clear-cut claims (confidence &ge; 0.90) are auto-adjudicated instantly by System 1 in &lt;100ms. Ambiguous
+          edge cases (confidence &lt; 0.90)
           trigger immediate escalation to System 2 to generate structured clinical rationale for a human nurse auditor.
         </p>
       </div>
@@ -1080,6 +1287,24 @@
       currentBackend = backend;
       document.getElementById('mode-local-btn').classList.toggle('active', backend === 'local');
       document.getElementById('mode-cloud-btn').classList.toggle('active', backend === 'cloud');
+
+      const isCloud = backend === 'cloud';
+      const s1Label = isCloud ? 'System 1: OpenAI Decisions API' : 'System 1: Cygnet Readout';
+      const s2Label = isCloud ? 'System 2: OpenAI GPT-6 Sol' : 'System 2: Gemma 4 12B (JSON)';
+      const s1Lane = isCloud ? 'System 1 (OpenAI Decisions API)' : 'System 1 (Cygnet One-Token Readout)';
+      const s2Lane = isCloud ? 'System 2 (OpenAI GPT-6 Sol)' : 'System 2 (Gemma 4 12B Autoregressive JSON)';
+      const subTitle = isCloud ? 'System 2 (GPT-6 Sol Chat Completions) vs. System 1 (OpenAI Decisions API)' : 'System 2 (Gemma 4 12B Autoregressive JSON) vs. System 1 (Cygnet One-Token Readout)';
+
+      const elS1 = document.getElementById('s1-card-title');
+      if (elS1) elS1.textContent = s1Label;
+      const elS2 = document.getElementById('s2-card-title');
+      if (elS2) elS2.textContent = s2Label;
+      const elLaneS1 = document.getElementById('s1-lane-title');
+      if (elLaneS1) elLaneS1.textContent = s1Lane;
+      const elLaneS2 = document.getElementById('s2-lane-title');
+      if (elLaneS2) elLaneS2.textContent = s2Lane;
+      const elSub = document.getElementById('brand-subtitle');
+      if (elSub) elSub.textContent = subTitle;
     }
 
     // --- Telemetry Polling ---
@@ -1157,7 +1382,7 @@
       document.getElementById('tag-age').textContent = `Age: ${currentClaim.patient_age}`;
       document.getElementById('tag-specialty').textContent = `Spec: ${currentClaim.provider_specialty}`;
       document.getElementById('tag-billed').textContent = `Billed: $${currentClaim.billed_amount.toLocaleString()}`;
-      
+
       const diffTag = document.getElementById('tag-difficulty');
       if (currentClaim.difficulty === 'easy') {
         diffTag.className = 'tag tag-easy';
@@ -1192,7 +1417,7 @@
       const btn = document.getElementById('eval-single-btn');
       const spinner = document.getElementById('eval-btn-spinner');
       const label = document.getElementById('eval-btn-label');
-      
+
       btn.disabled = true;
       spinner.style.display = 'inline-block';
       label.textContent = 'Evaluating Claim...';
@@ -1242,7 +1467,7 @@
       document.getElementById('s1-winner-queue').textContent = s1.routing_queue;
       document.getElementById('s1-confidence-score').textContent = `${(s1.confidence * 100).toFixed(1)}%`;
       document.getElementById('s1-latency-chip').textContent = `${s1.latency_ms} ms`;
-      document.getElementById('s1-missing-docs-val').textContent = 
+      document.getElementById('s1-missing-docs-val').textContent =
         `${s1.missing_clinical_docs.toUpperCase()} (${(s1.missing_docs_prob * 100).toFixed(0)}% yes)`;
       document.getElementById('s1-urgency-val').textContent = s1.urgency_tier;
 
@@ -1275,10 +1500,10 @@
       }
 
       if (cascade.escalated_to_llm) {
-        title.innerHTML = `<span style="color: var(--s2-amber);">⚠️ Escalated to System 2 Review</span> (Confidence ${(s1.confidence * 100).toFixed(1)}% < ${(data.threshold * 100).toFixed(0)}%)`;
+        title.innerHTML = `<span style="color: var(--s2-orange);">⚠️ Escalated to System 2 Review</span> (Confidence ${(s1.confidence * 100).toFixed(1)}% < ${(data.threshold * 100).toFixed(0)}%)`;
         desc.textContent = `Ambiguous clinical edge case detected. System 1 gated confidence dropped below the cascade threshold. System 2 engaged to generate clinical rationale. Total latency: ${cascade.latency_ms} ms.`;
       } else {
-        title.innerHTML = `<span style="color: var(--s1-teal);">⚡ Auto-Adjudicated by System 1</span> (Confidence ${(s1.confidence * 100).toFixed(1)}% ≥ ${(data.threshold * 100).toFixed(0)}%)`;
+        title.innerHTML = `<span style="color: var(--cascade-teal);">⚡ Auto-Adjudicated by System 1</span> (Confidence ${(s1.confidence * 100).toFixed(1)}% ≥ ${(data.threshold * 100).toFixed(0)}%)`;
         desc.textContent = `High-confidence clear-cut claim. Adjudicated instantly in 1 single-token forward pass (${s1.latency_ms} ms) with zero prose tokens generated.`;
       }
     }
@@ -1293,13 +1518,13 @@
           datasets: [{
             data: [0, 0, 0, 0, 0],
             backgroundColor: [
-              'rgba(20, 184, 166, 0.7)',
-              'rgba(59, 130, 246, 0.7)',
-              'rgba(245, 158, 11, 0.7)',
-              'rgba(139, 92, 246, 0.7)',
-              'rgba(239, 68, 68, 0.7)'
+              'rgba(0, 61, 165, 0.85)',   // Navy Blue
+              'rgba(15, 118, 110, 0.85)',  // Deep Teal
+              'rgba(232, 93, 4, 0.85)',   // Vibrant Orange
+              'rgba(2, 132, 199, 0.85)',   // Accent Blue
+              'rgba(220, 38, 38, 0.85)'    // Red SIU
             ],
-            borderColor: 'rgba(255, 255, 255, 0.15)',
+            borderColor: 'rgba(0, 0, 0, 0.08)',
             borderWidth: 1,
             borderRadius: 4
           }]
@@ -1311,6 +1536,9 @@
           plugins: {
             legend: { display: false },
             tooltip: {
+              backgroundColor: '#0f172a',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
               callbacks: {
                 label: (ctx) => `Probability: ${(ctx.parsed.x * 100).toFixed(1)}%`
               }
@@ -1320,15 +1548,15 @@
             x: {
               min: 0,
               max: 1.0,
-              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              grid: { color: 'rgba(0, 0, 0, 0.06)' },
               ticks: {
-                color: '#9ca3af',
+                color: '#475569',
                 callback: (v) => `${(v * 100).toFixed(0)}%`
               }
             },
             y: {
               grid: { display: false },
-              ticks: { color: '#e5e7eb', font: { family: 'JetBrains Mono', size: 10 } }
+              ticks: { color: '#0f172a', font: { family: 'JetBrains Mono', size: 10 } }
             }
           }
         }
@@ -1357,13 +1585,25 @@
       spinner.style.display = 'inline-block';
       label.textContent = 'Racing Lanes...';
 
-      // Reset bars
-      document.getElementById('s1-progress-bar').style.width = '0%';
+      // Reset bars (System 2 runs first -> System 1 -> Cascade)
       document.getElementById('s2-progress-bar').style.width = '0%';
+      document.getElementById('s1-progress-bar').style.width = '0%';
       document.getElementById('cascade-progress-bar').style.width = '0%';
-      document.getElementById('s1-lane-status').textContent = 'Queued...';
       document.getElementById('s2-lane-status').textContent = 'Queued...';
+      document.getElementById('s1-lane-status').textContent = 'Queued...';
       document.getElementById('cascade-lane-status').textContent = 'Waiting for lane results...';
+
+      // Reset annual costs and table to blank until race finishes
+      ['t-s2-acc', 't-s1-acc', 't-casc-acc', 't-s2-p50', 't-s1-p50', 't-casc-p50',
+       't-s2-p95', 't-s1-p95', 't-casc-p95', 't-casc-esc', 't-casc-tokens',
+       't-s2-wh', 't-s1-wh', 't-casc-wh', 't-s2-cost', 't-s1-cost', 't-casc-cost'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '--';
+      });
+      document.getElementById('annual-s2-cost').textContent = '--';
+      document.getElementById('annual-s1-cost').textContent = '--';
+      document.getElementById('annual-casc-cost').textContent = '--';
+      document.getElementById('annual-savings-sub').textContent = 'Calculating from race results...';
 
       try {
         const response = await fetch('/api/evaluate-batch', {
@@ -1464,10 +1704,10 @@
       document.getElementById('annual-s2-cost').textContent = `$${s2.annual_cost_usd.toLocaleString()}`;
       document.getElementById('annual-s1-cost').textContent = `$${s1.annual_cost_usd.toLocaleString()}`;
       document.getElementById('annual-casc-cost').textContent = `$${casc.annual_cost_usd.toLocaleString()}`;
-      
+
       const savings = s2.annual_cost_usd - casc.annual_cost_usd;
       const savingsPct = ((savings / s2.annual_cost_usd) * 100).toFixed(1);
-      document.getElementById('annual-savings-sub').textContent = 
+      document.getElementById('annual-savings-sub').textContent =
         `Annual Savings: $${savings.toLocaleString()} / yr (${savingsPct}%)`;
     }
 
@@ -1501,4 +1741,5 @@
     }
   </script>
 </body>
+
 </html>
