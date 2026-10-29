@@ -23,4 +23,19 @@ cygnet-recipe/
 
 # Local IDE and tool configuration (machine-specific paths)
 .vscode/
-pyrefly.toml
+pyrefly.toml
+
+# Presentation and slides
+slides.html
+*slide*.html
+slides/
+slide/
+presentation/
+presentations/
+*.pptx
+*.ppt
+*.key
+*.odp
+*slide*.pdf
+*presentation*.pdf
+
