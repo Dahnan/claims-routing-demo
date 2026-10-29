@@ -300,15 +300,21 @@
     /* Layout Grids */
     .grid-inspector {
       display: grid;
-      grid-template-columns: 420px 1fr;
+      grid-template-columns: minmax(340px, 1fr) 1.15fr 1.15fr;
       gap: 1.25rem;
-      align-items: start;
+      align-items: stretch;
     }
 
-    @media (max-width: 1024px) {
+    @media (max-width: 1100px) {
       .grid-inspector {
         grid-template-columns: 1fr;
       }
+    }
+
+    .inspector-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
 
     /* Form Controls */
@@ -591,6 +597,7 @@
 
     /* Cascade Banner */
     .cascade-banner {
+      grid-column: 1 / -1;
       background: var(--cascade-bg);
       border: 1px solid var(--cascade-border);
       border-radius: var(--radius-lg);
@@ -599,7 +606,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 1.5rem;
-      margin-top: 1rem;
+      margin-top: 0.25rem;
       flex-wrap: wrap;
       box-shadow: 0 2px 8px rgba(15, 118, 110, 0.08);
     }
@@ -850,21 +857,16 @@
   <!-- NAVIGATION TABS                                                       -->
   <!-- ===================================================================== -->
   <div class="nav-tabs-bar">
-    <div class="nav-tabs" style="display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; gap: 1.5rem;">
-        <button class="tab-btn active" id="tab-btn-inspector" onclick="switchTab('inspector')">
-          Single-Claim Inspector
-        </button>
-        <button class="tab-btn" id="tab-btn-batch" onclick="switchTab('batch')">
-          Batch Race & Cascade Simulator
-        </button>
-        <button class="tab-btn" id="tab-btn-methodology" onclick="switchTab('methodology')">
-          Methodology & Schema
-        </button>
-      </div>
-      <a href="/slides" target="_blank" style="text-decoration: none; font-size: 0.78rem; font-weight: 600; color: var(--brand-blue); display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.65rem; border-radius: 9999px; background: #f0f7ff; border: 1px solid #bae6fd; transition: all 0.2s;">
-        <span>📊 Presentation Slides ↗</span>
-      </a>
+    <div class="nav-tabs">
+      <button class="tab-btn active" id="tab-btn-inspector" onclick="switchTab('inspector')">
+        Single-Claim Inspector
+      </button>
+      <button class="tab-btn" id="tab-btn-batch" onclick="switchTab('batch')">
+        Batch Race & Cascade Simulator
+      </button>
+      <button class="tab-btn" id="tab-btn-methodology" onclick="switchTab('methodology')">
+        Methodology & Schema
+      </button>
     </div>
   </div>
 
@@ -880,7 +882,7 @@
       <div class="grid-inspector">
 
         <!-- Left Column: Claim Input & Controls -->
-        <div class="card">
+        <div class="card inspector-card" id="seed-claim-card">
           <div class="form-group">
             <label class="form-label" for="seed-select">Select Seed Claim (1 of 10)</label>
             <select id="seed-select" onchange="onSelectClaim(this.value)">
@@ -895,9 +897,10 @@
             <span class="tag tag-easy" id="tag-difficulty">Easy</span>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
             <label class="form-label" for="claim-note-input">Clinical Attachment / Provider Note (Editable)</label>
-            <textarea id="claim-note-input" rows="7" placeholder="Provider clinical notes..."></textarea>
+            <textarea id="claim-note-input" rows="7" placeholder="Provider clinical notes..."
+              style="flex: 1; min-height: 140px; resize: vertical;"></textarea>
           </div>
 
           <div class="form-group">
@@ -911,10 +914,10 @@
             </div>
           </div>
 
-          <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
+          <div style="display: flex; gap: 0.75rem; margin-top: auto; padding-top: 0.5rem;">
             <button class="btn btn-primary" id="eval-single-btn" onclick="evaluateSingleClaim()" style="flex: 1;">
               <span id="eval-btn-spinner" class="spinner" style="display: none;"></span>
-              <span id="eval-btn-label">⚡ Evaluate Claim (Side-by-Side)</span>
+              <span id="eval-btn-label">Evaluate Claim (Side-by-Side)</span>
             </button>
             <button class="btn btn-secondary" onclick="resetCurrentClaim()" title="Reset note to original seed">
               ↺ Reset
@@ -922,109 +925,102 @@
           </div>
         </div>
 
-        <!-- Right Column: Comparative Results (System 2 -> System 1 -> Cascade) -->
-        <div>
-          <div class="results-grid">
-
-            <!-- System 2 Card (Baseline LLM) -->
-            <div class="card result-card s2">
-              <div class="result-header">
-                <div class="result-title pill-s2">
-                  <span id="s2-card-title">System 2: Gemma 4 12B (JSON)</span>
-                </div>
-                <div style="display: flex; gap: 0.4rem;">
-                  <span class="stat-chip mono" id="s2-latency-chip">-- ms</span>
-                  <span class="stat-chip mono" id="s2-tokens-chip">-- tokens out</span>
-                </div>
-              </div>
-
-              <div class="queue-winner s2">
-                <div>
-                  <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Adjudicated
-                    Route</div>
-                  <div class="queue-name mono" id="s2-winner-queue">--</div>
-                </div>
-                <div class="stat-chip"
-                  style="background: var(--s2-bg); color: var(--s2-orange); border-color: var(--s2-border); font-weight: 600;">
-                  Structured JSON
-                </div>
-              </div>
-
-              <div class="form-label">Clinical & Coding Rationale:</div>
-              <div class="rationale-box" id="s2-rationale-box">
-                Run evaluation to generate clinical rationale...
-              </div>
-
-              <div class="sub-readout-grid">
-                <div class="sub-metric">
-                  <span style="color: var(--text-muted);">Missing Docs:</span>
-                  <div class="sub-metric-val mono" id="s2-missing-docs-val">--</div>
-                </div>
-                <div class="sub-metric">
-                  <span style="color: var(--text-muted);">Urgency Tier:</span>
-                  <div class="sub-metric-val mono" id="s2-urgency-val">--</div>
-                </div>
-              </div>
+        <!-- System 2 Card (Baseline LLM) -->
+        <div class="card result-card s2 inspector-card" id="s2-card">
+          <div class="result-header">
+            <div class="result-title pill-s2">
+              <span id="s2-card-title">System 2: Gemma 4 12B (JSON)</span>
             </div>
-
-            <!-- System 1 Card (One-Token Readout) -->
-            <div class="card result-card s1">
-              <div class="result-header">
-                <div class="result-title pill-s1">
-                  <span id="s1-card-title">System 1: Cygnet Readout</span>
-                </div>
-                <div style="display: flex; gap: 0.4rem;">
-                  <span class="stat-chip mono" id="s1-latency-chip">-- ms</span>
-                  <span class="stat-chip mono" id="s1-tokens-chip">3 tokens out</span>
-                </div>
-              </div>
-
-              <div class="queue-winner s1">
-                <div>
-                  <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Primary Route
-                  </div>
-                  <div class="queue-name mono" id="s1-winner-queue">--</div>
-                </div>
-                <div class="confidence-score mono" id="s1-confidence-score">--%</div>
-              </div>
-
-              <!-- Probability Bar Chart -->
-              <div style="height: 180px; position: relative; margin-top: 0.5rem;">
-                <canvas id="s1-chart"></canvas>
-              </div>
-
-              <div class="sub-readout-grid">
-                <div class="sub-metric">
-                  <span style="color: var(--text-muted);">Missing Docs:</span>
-                  <div class="sub-metric-val mono" id="s1-missing-docs-val">--</div>
-                </div>
-                <div class="sub-metric">
-                  <span style="color: var(--text-muted);">Urgency Tier:</span>
-                  <div class="sub-metric-val mono" id="s1-urgency-val">--</div>
-                </div>
-              </div>
+            <div style="display: flex; gap: 0.4rem;">
+              <span class="stat-chip mono" id="s2-latency-chip">-- ms</span>
+              <span class="stat-chip mono" id="s2-tokens-chip">-- tokens out</span>
             </div>
-
           </div>
 
-          <!-- Cascade Verdict Banner -->
-          <div class="cascade-banner" id="cascade-banner">
+          <div class="queue-winner s2">
             <div>
-              <div class="cascade-verdict-title" id="cascade-verdict-title">Confidence Cascade Verdict</div>
-              <div class="cascade-verdict-desc" id="cascade-verdict-desc">
-                Evaluate a claim to observe whether System 1 auto-routes or escalates to System 2.
+              <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Adjudicated Route
               </div>
+              <div class="queue-name mono" id="s2-winner-queue">--</div>
             </div>
-            <div style="display: flex; gap: 0.75rem; align-items: center;">
-              <span class="badge" id="cascade-speedup-badge"
-                style="background: #ffffff; border-color: var(--cascade-border); color: var(--cascade-teal); font-weight: 700; font-size: 0.82rem;">
-                -- Speedup
-              </span>
-              <span class="badge" id="cascade-match-badge"
-                style="background: #ffffff; border-color: var(--card-border); font-size: 0.82rem;">
-                Match: --
-              </span>
+            <div class="stat-chip"
+              style="background: var(--s2-bg); color: var(--s2-orange); border-color: var(--s2-border); font-weight: 600;">
+              Structured JSON
             </div>
+          </div>
+
+          <div class="form-label">Clinical & Coding Rationale:</div>
+          <div class="rationale-box" id="s2-rationale-box" style="flex: 1; min-height: 140px; overflow-y: auto;">
+            Run evaluation to generate clinical rationale...
+          </div>
+
+          <div class="sub-readout-grid" style="margin-top: auto;">
+            <div class="sub-metric">
+              <span style="color: var(--text-muted);">Missing Docs:</span>
+              <div class="sub-metric-val mono" id="s2-missing-docs-val">--</div>
+            </div>
+            <div class="sub-metric">
+              <span style="color: var(--text-muted);">Urgency Tier:</span>
+              <div class="sub-metric-val mono" id="s2-urgency-val">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- System 1 Card (One-Token Readout) -->
+        <div class="card result-card s1 inspector-card" id="s1-card">
+          <div class="result-header">
+            <div class="result-title pill-s1">
+              <span id="s1-card-title">System 1: Cygnet Readout</span>
+            </div>
+            <div style="display: flex; gap: 0.4rem;">
+              <span class="stat-chip mono" id="s1-latency-chip">-- ms</span>
+              <span class="stat-chip mono" id="s1-tokens-chip">3 tokens out</span>
+            </div>
+          </div>
+
+          <div class="queue-winner s1">
+            <div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Primary Route</div>
+              <div class="queue-name mono" id="s1-winner-queue">--</div>
+            </div>
+            <div class="confidence-score mono" id="s1-confidence-score">--%</div>
+          </div>
+
+          <!-- Probability Bar Chart -->
+          <div class="form-label" style="margin-top: 0.25rem;">Route Probability Distribution:</div>
+          <div style="flex: 1; min-height: 140px; position: relative;">
+            <canvas id="s1-chart"></canvas>
+          </div>
+
+          <div class="sub-readout-grid" style="margin-top: auto;">
+            <div class="sub-metric">
+              <span style="color: var(--text-muted);">Missing Docs:</span>
+              <div class="sub-metric-val mono" id="s1-missing-docs-val">--</div>
+            </div>
+            <div class="sub-metric">
+              <span style="color: var(--text-muted);">Urgency Tier:</span>
+              <div class="sub-metric-val mono" id="s1-urgency-val">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cascade Verdict Banner (Spans Full Width Below the 3 Equal-Height Cards) -->
+        <div class="cascade-banner" id="cascade-banner">
+          <div>
+            <div class="cascade-verdict-title" id="cascade-verdict-title">Confidence Cascade Verdict</div>
+            <div class="cascade-verdict-desc" id="cascade-verdict-desc">
+              Evaluate a claim to observe whether System 1 auto-routes or escalates to System 2.
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <span class="badge" id="cascade-speedup-badge"
+              style="background: #ffffff; border-color: var(--cascade-border); color: var(--cascade-teal); font-weight: 700; font-size: 0.82rem;">
+              -- Speedup
+            </span>
+            <span class="badge" id="cascade-match-badge"
+              style="background: #ffffff; border-color: var(--card-border); font-size: 0.82rem;">
+              Match: --
+            </span>
           </div>
         </div>
 
@@ -1453,7 +1449,7 @@
       } finally {
         btn.disabled = false;
         spinner.style.display = 'none';
-        label.textContent = '⚡ Evaluate Claim (Side-by-Side)';
+        label.textContent = 'Evaluate Claim (Side-by-Side)';
       }
     }
 
@@ -1503,7 +1499,7 @@
         title.innerHTML = `<span style="color: var(--s2-orange);">⚠️ Escalated to System 2 Review</span> (Confidence ${(s1.confidence * 100).toFixed(1)}% < ${(data.threshold * 100).toFixed(0)}%)`;
         desc.textContent = `Ambiguous clinical edge case detected. System 1 gated confidence dropped below the cascade threshold. System 2 engaged to generate clinical rationale. Total latency: ${cascade.latency_ms} ms.`;
       } else {
-        title.innerHTML = `<span style="color: var(--cascade-teal);">⚡ Auto-Adjudicated by System 1</span> (Confidence ${(s1.confidence * 100).toFixed(1)}% ≥ ${(data.threshold * 100).toFixed(0)}%)`;
+        title.innerHTML = `<span style="color: var(--cascade-teal);">Auto-Adjudicated by System 1</span> (Confidence ${(s1.confidence * 100).toFixed(1)}% ≥ ${(data.threshold * 100).toFixed(0)}%)`;
         desc.textContent = `High-confidence clear-cut claim. Adjudicated instantly in 1 single-token forward pass (${s1.latency_ms} ms) with zero prose tokens generated.`;
       }
     }
@@ -1595,11 +1591,11 @@
 
       // Reset annual costs and table to blank until race finishes
       ['t-s2-acc', 't-s1-acc', 't-casc-acc', 't-s2-p50', 't-s1-p50', 't-casc-p50',
-       't-s2-p95', 't-s1-p95', 't-casc-p95', 't-casc-esc', 't-casc-tokens',
-       't-s2-wh', 't-s1-wh', 't-casc-wh', 't-s2-cost', 't-s1-cost', 't-casc-cost'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = '--';
-      });
+        't-s2-p95', 't-s1-p95', 't-casc-p95', 't-casc-esc', 't-casc-tokens',
+        't-s2-wh', 't-s1-wh', 't-casc-wh', 't-s2-cost', 't-s1-cost', 't-casc-cost'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '--';
+        });
       document.getElementById('annual-s2-cost').textContent = '--';
       document.getElementById('annual-s1-cost').textContent = '--';
       document.getElementById('annual-casc-cost').textContent = '--';
